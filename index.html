@@ -10,9 +10,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Huninn&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Iansui&display=swap">
 <title>留己看</title>
 <style>
 :root {
+    --font-title: "Iansui", -apple-system, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+    --font-body: "Huninn", -apple-system, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
     --title-color: #566270;
     --text-color: #566270;
     --muted-color: #9b9a97;
@@ -38,12 +41,20 @@ body {
     padding: 0 16px;
 }
 
-h1 {
-    font-family: -apple-system, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
-    font-size: 28px;
+h1, h2, h3{
+    font-family: var(--font-title);
+    font-weight: 700;
     margin: 28px 0 12px;
     color: var(--title-color);
+}
+
+h1 {
+    font: 2.2rem;
     text-align: center;
+}
+
+h2 {
+    font: 1.2rem;
 }
 
 .sub-title {
@@ -358,8 +369,8 @@ footer {
 <body>
 
 <div class="page-width">
-    <h1><b>⊹˚. 📑 留己看 ˖ ࣪⊹</b></h1>
-    <div class="sub-title"><h4>🔖總有一天會回來看的！</h4></div>
+    <h1>⊹˚. 📑 留己看 ˖ ࣪⊹</h1>
+    <div class="sub-title"><h2>🔖總有一天會回來看的！</h2></div>
     <input id="search-box" type="search" placeholder="🔍搜尋標題、備註、網址……">
     <nav id="folder-tabs"></nav>
     <div id="folder-actions"></div>
