@@ -18,9 +18,13 @@
     --font-body: "Huninn", -apple-system, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
     --title-color: #566270;
     --text-color: #566270;
-    --muted-color: #9b9a97;
+    --muted-color: #939aaa;
     --border-color: #a5b3e0;
-    --hover-color: #e0e3ea;
+    --hover-color: #eef1fb;
+    --soft-color: #f3f5fc;
+    --line-color: #d5dcf3;
+    --card-shadow: 0 3px 0 #dde3f5;
+    --link-color: #5a6cbd;
 }
 
 * {
@@ -29,9 +33,11 @@
 
 body {
     margin: 0;
-    background: #fffff3;
+    background-color: #fffff3;
+    background-image: radial-gradient(#e6e9f4 1.4px, transparent 1.6px);
+    background-size: 20px 20px;
     color: var(--text-color);
-    font: 15px/1.55 "Huninn", -apple-system, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+    font-family: var(--font-body);
     padding-bottom: 110px;
 }
 
@@ -41,25 +47,20 @@ body {
     padding: 0 16px;
 }
 
-h1, h2, h3{
+h1 {
     font-family: var(--font-title);
-    font-weight: 700;
+    font-size: 28px;
     margin: 28px 0 12px;
     color: var(--title-color);
-}
-
-h1 {
-    font: 2.2rem;
     text-align: center;
-}
-
-h2 {
-    font: 1.2rem;
+    text-shadow: 2px 2px 0 var(--soft-color);
 }
 
 .sub-title {
+    font-family: var(--font-title);
     font-size: 18px;
     text-indent: 1em;
+    color: var(--muted-color);
 }
 
 input, select, textarea, button {
@@ -69,57 +70,78 @@ input, select, textarea, button {
 
 input, select, textarea {
     width: 100%;
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 9px 10px;
+    border: 2px solid var(--line-color);
+    border-radius: 16px;
+    padding: 10px 14px;
     background: #fff;
 }
 
-input:focus, select:focus, textarea:focus, button:focus-visible {
-    outline: 2px solid #2383e2;
-    outline-offset: -1px;
+textarea {
+    resize: vertical;
 }
 
+input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--border-color);
+    box-shadow: 0 0 0 4px rgba(165, 179, 224, .35);
+}
+
+button:focus-visible {
+    outline: 3px solid var(--border-color);
+    outline-offset: 2px;
+}
+
+/* Folder chips */
 #folder-tabs {
     display: flex;
-    gap: 6px;
+    gap: 8px;
     overflow-x: auto;
-    padding: 12px 0 4px;
+    padding: 14px 2px 8px;
     scrollbar-width: none;
 }
 
 .button {
     flex: none;
-    border: 2px outset var(--border-color);
+    white-space: nowrap;
+    border: 2px solid var(--line-color);
     background: #fff;
-    border-radius: 12px;
-    padding: 5px 11px;
+    border-radius: 999px;
+    padding: 6px 14px;
+    box-shadow: 0 2px 0 var(--line-color);
     cursor: pointer;
+    transition: transform .12s, box-shadow .12s, background .12s;
 }
 
-.button:hover:not(.add-button) {
-    background: var(--hover-color);
-    color: var(--text-color);
-    border: 2px outset #556390;
-    transform: translateY(-1px);
-} 
+.button:active {
+    transform: translateY(2px);
+    box-shadow: none;
+}
+
+@media (hover: hover) {
+    .button:hover:not(.add-button):not(.on) {
+        background: var(--hover-color);
+        transform: translateY(-1px);
+    }
+}
 
 .button.on {
-    background: var(--text-color);
-    color: #fff;
-    border: 2px inset var(--text-color);
+    background: var(--border-color);
+    border-color: var(--border-color);
+    color: #2f3946;
+    box-shadow: 0 2px 0 #8798cf;
 }
 
 .button.add-button {
     color: var(--muted-color);
     border-style: dashed;
-    border-color: var(--muted-color);
+    border-color: var(--border-color);
+    box-shadow: none;
 }
 
 #folder-actions {
     display: flex;
     gap: 16px;
-    padding: 4px 0;
+    padding: 4px 4px;
 }
 
 #folder-actions button, footer button {
@@ -130,19 +152,26 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
     padding: 6px 0;
 }
 
+/* Link cards */
 .item-card {
     display: block;
-    padding: 12px 4px;
-    border-bottom: 1px solid var(--border-color);
+    margin-top: 12px;
+    padding: 14px 16px;
+    background: #fff;
+    border: 2px solid #e6eaf7;
+    border-radius: 18px;
+    box-shadow: var(--card-shadow);
     cursor: pointer;
+    transition: transform .12s, box-shadow .12s;
 }
 
 .item-card:active {
-    background: var(--hover-color);
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 #dde3f5;
 }
 
 .item-title {
-    font-weight: 600;
+    font-weight: 700;
     overflow-wrap: anywhere;
 }
 
@@ -156,18 +185,33 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 
 .item-note {
     font-size: 14px;
-    color: #605e59;
+    color: var(--text-color);
+    background: var(--soft-color);
+    border-radius: 12px;
+    padding: 6px 10px;
+    margin-top: 8px;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    margin-top: 2px;
 }
 
 .empty-message {
     color: var(--muted-color);
     text-align: center;
-    padding: 48px 16px;
+    line-height: 1.9;
+    margin-top: 20px;
+    padding: 36px 16px;
+    background: rgba(255, 255, 255, .6);
+    border: 2px dashed var(--line-color);
+    border-radius: 22px;
+}
+
+.empty-message::before {
+    content: "🐾";
+    display: block;
+    font-size: 36px;
+    margin-bottom: 6px;
 }
 
 footer {
@@ -176,24 +220,33 @@ footer {
     margin-top: 24px;
 }
 
+/* Add button */
 #add-link-button {
     position: fixed;
     right: 20px;
     bottom: calc(20px + env(safe-area-inset-bottom));
-    width: 54px;
-    height: 54px;
+    width: 58px;
+    height: 58px;
     border-radius: 50%;
     border: 0;
-    background: var(--text-color);
-    color: #fff;
-    font-size: 28px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, .25);
+    background: var(--border-color);
+    color: #3d4756;
+    font-size: 32px;
+    line-height: 1;
+    box-shadow: 0 4px 0 #8798cf, 0 10px 18px rgba(86, 98, 112, .25);
+    transition: transform .12s, box-shadow .12s;
 }
 
+#add-link-button:active {
+    transform: translateY(3px);
+    box-shadow: 0 1px 0 #8798cf, 0 4px 10px rgba(86, 98, 112, .25);
+}
+
+/* Add-link sheet */
 .backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, .35);
+    background: rgba(86, 98, 112, .35);
     z-index: 5;
 }
 
@@ -204,12 +257,22 @@ footer {
     bottom: 0;
     z-index: 6;
     background: #fff;
-    border-radius: 14px 14px 0 0;
-    padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+    border-radius: 26px 26px 0 0;
+    box-shadow: 0 -6px 24px rgba(86, 98, 112, .15);
+    padding: 14px 16px calc(18px + env(safe-area-inset-bottom));
     display: grid;
     gap: 10px;
     max-width: 640px;
     margin: auto;
+}
+
+.bottom-sheet::before {
+    content: "";
+    justify-self: center;
+    width: 40px;
+    height: 5px;
+    border-radius: 99px;
+    background: var(--line-color);
 }
 
 .bottom-sheet h2 {
@@ -227,9 +290,9 @@ footer {
 }
 
 .secondary-button, .primary-button {
-    border-radius: 6px;
-    padding: 10px;
-    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    padding: 11px;
+    border: 2px solid var(--line-color);
     background: #fff;
 }
 
@@ -237,13 +300,22 @@ footer {
     background: var(--text-color);
     color: #fff;
     border-color: var(--text-color);
+    box-shadow: 0 3px 0 #3d4756;
 }
 
+.primary-button:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 #3d4756;
+}
+
+/* Detail page */
 .detail-page {
     position: fixed;
     inset: 0;
     z-index: 7;
-    background: #fff;
+    background-color: #fffff3;
+    background-image: radial-gradient(#e6e9f4 1.4px, transparent 1.6px);
+    background-size: 20px 20px;
     overflow: auto;
     padding: 0 max(16px, calc((100% - 608px) / 2)) 40px;
 }
@@ -255,7 +327,7 @@ footer {
     padding: calc(10px + env(safe-area-inset-top)) 0 8px;
     position: sticky;
     top: 0;
-    background: #fff;
+    background: #fffff3;
 }
 
 .detail-top-bar button {
@@ -265,15 +337,23 @@ footer {
 }
 
 .detail-top-bar a, .map-link {
-    color: #2383e2;
+    color: var(--link-color);
     text-decoration: none;
 }
 
 .title-field {
+    background: transparent;
     border: 0;
+    border-bottom: 2px dashed var(--line-color);
+    border-radius: 0;
     font-size: 22px;
     font-weight: 700;
     padding: 6px 0;
+}
+
+.title-field:focus {
+    box-shadow: none;
+    border-bottom-color: var(--border-color);
 }
 
 .detail-page label {
@@ -292,21 +372,31 @@ footer {
 .image-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
+    gap: 10px;
     margin-top: 14px;
 }
 
 .image-tile {
     position: relative;
     aspect-ratio: 1;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
+    border: 2px solid #e6eaf7;
+    border-radius: 16px;
     overflow: hidden;
     display: grid;
     place-items: center;
     font-size: 26px;
     color: var(--muted-color);
+    background: #fff;
     cursor: pointer;
+}
+
+/* the "+" add tile is also a label, so it needs to beat ".detail-page label" */
+.detail-page label.image-tile {
+    display: grid;
+    margin-top: 0;
+    font-size: 26px;
+    border-style: dashed;
+    border-color: var(--border-color);
 }
 
 .image-tile img {
@@ -317,23 +407,24 @@ footer {
 
 .image-tile button {
     position: absolute;
-    top: 4px;
-    right: 4px;
-    width: 24px;
-    height: 24px;
+    top: 6px;
+    right: 6px;
+    width: 26px;
+    height: 26px;
     border: 0;
     border-radius: 50%;
-    background: rgba(0, 0, 0, .6);
+    background: rgba(86, 98, 112, .75);
     color: #fff;
     line-height: 1;
 }
 
 .delete-item-button {
     margin-top: 28px;
-    border: 0;
-    background: 0;
-    color: #eb5757;
-    padding: 8px 0;
+    background: #fff;
+    border: 2px solid #f1b4bd;
+    border-radius: 999px;
+    color: #c4455b;
+    padding: 8px 18px;
 }
 
 .lightbox {
@@ -350,27 +441,42 @@ footer {
     max-height: 100%;
 }
 
+/* Toast */
 #toast-message {
     position: fixed;
     left: 50%;
-    bottom: 90px;
+    bottom: 96px;
     transform: translateX(-50%);
     background: var(--text-color);
     color: #fff;
-    padding: 8px 14px;
-    border-radius: 6px;
+    padding: 9px 18px;
+    border-radius: 999px;
     font-size: 14px;
     z-index: 10;
+    animation: toast-pop .25s ease-out;
 }
 
+@keyframes toast-pop {
+    from { opacity: 0; transform: translate(-50%, 10px); }
+    to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * {
+        transition: none !important;
+        animation: none !important;
+    }
+}
 </style>
+
+
 </head>
 
 <body>
 
 <div class="page-width">
-    <h1>⊹˚. 📑 留己看 ˖ ࣪⊹</h1>
-    <div class="sub-title"><h2>🔖總有一天會回來看的！</h2></div>
+    <h1><b>⊹˚. 📑 留己看 ˖ ࣪⊹</b></h1>
+    <div class="sub-title"><h4>🔖我總有一天會回來看的！</h4></div>
     <input id="search-box" type="search" placeholder="🔍搜尋標題、備註、網址……">
     <nav id="folder-tabs"></nav>
     <div id="folder-actions"></div>
