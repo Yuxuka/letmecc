@@ -1,156 +1,881 @@
 <!DOCTYPE html>
-<html lang="zh-Hant"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#ffffff">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
-<title>連結收藏</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Huninn&display=swap">
+<title>留己看</title>
 <style>
-:root{--tx:#37352f;--mu:#9b9a97;--bd:#e9e9e7;--hv:#f7f7f5}
-*{box-sizing:border-box}
-body{margin:0;background:#fff;color:var(--tx);font:15px/1.55 -apple-system,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;padding-bottom:110px}
-.w{max-width:640px;margin:auto;padding:0 16px}
-h1{font-size:28px;margin:28px 0 12px}
-input,select,textarea,button{font:inherit;color:inherit}
-input,select,textarea{width:100%;border:1px solid var(--bd);border-radius:6px;padding:9px 10px;background:#fff}
-input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid #2383e2;outline-offset:-1px}
-#fs{display:flex;gap:6px;overflow-x:auto;padding:12px 0 4px;scrollbar-width:none}
-.chip{flex:none;border:1px solid var(--bd);background:#fff;border-radius:6px;padding:5px 11px;cursor:pointer}
-.chip.on{background:var(--tx);color:#fff;border-color:var(--tx)}
-.chip.add{color:var(--mu);border-style:dashed}
-#bar{display:flex;gap:16px;padding:4px 0}
-#bar button,footer button{border:0;background:0;color:var(--mu);font-size:13px;padding:6px 0}
-.it{display:block;padding:12px 4px;border-bottom:1px solid var(--bd);cursor:pointer}
-.it:active{background:var(--hv)}
-.tt{font-weight:600;overflow-wrap:anywhere}
-.mt{color:var(--mu);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.nt{font-size:14px;color:#605e59;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-top:2px}
-.em{color:var(--mu);text-align:center;padding:48px 16px}
-footer{display:flex;gap:18px;margin-top:24px}
-#fab{position:fixed;right:20px;bottom:calc(20px + env(safe-area-inset-bottom));width:54px;height:54px;border-radius:50%;border:0;background:var(--tx);color:#fff;font-size:28px;box-shadow:0 2px 10px rgba(0,0,0,.25)}
-.bk{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:5}
-.sh{position:fixed;left:0;right:0;bottom:0;z-index:6;background:#fff;border-radius:14px 14px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));display:grid;gap:10px;max-width:640px;margin:auto}
-.sh h2{margin:0;font-size:17px}
-.row{display:flex;gap:10px}.row button{flex:1}
-.g,.p{border-radius:6px;padding:10px;border:1px solid var(--bd);background:#fff}
-.p{background:var(--tx);color:#fff;border-color:var(--tx)}
-.pg{position:fixed;inset:0;z-index:7;background:#fff;overflow:auto;padding:0 max(16px,calc((100% - 608px)/2)) 40px}
-.top{display:flex;justify-content:space-between;align-items:center;padding:calc(10px + env(safe-area-inset-top)) 0 8px;position:sticky;top:0;background:#fff}
-.top button{border:0;background:0;padding:6px 0}.top a,.lk{color:#2383e2;text-decoration:none}
-.ti{border:0;font-size:22px;font-weight:700;padding:6px 0}
-.pg label{display:block;margin-top:14px;color:var(--mu);font-size:13px}
-.pg label>*{margin-top:4px;color:var(--tx);font-size:15px}
-.gr{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
-.th{position:relative;aspect-ratio:1;border:1px solid var(--bd);border-radius:6px;overflow:hidden;display:grid;place-items:center;font-size:26px;color:var(--mu);cursor:pointer}
-.th img{width:100%;height:100%;object-fit:cover}
-.th button{position:absolute;top:4px;right:4px;width:24px;height:24px;border:0;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;line-height:1}
-.dng{margin-top:28px;border:0;background:0;color:#eb5757;padding:8px 0}
-.lb{position:fixed;inset:0;z-index:9;background:rgba(0,0,0,.92);display:grid;place-items:center}.lb img{max-width:100%;max-height:100%}
-#ts{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--tx);color:#fff;padding:8px 14px;border-radius:6px;font-size:14px;z-index:10}
-</style></head><body>
-<div class="w">
-<h1>連結收藏</h1>
-<input id="q" type="search" placeholder="搜尋標題、備註、地址">
-<nav id="fs"></nav><div id="bar"></div><main id="ls"></main>
-<footer><button id="ex">匯出備份</button><button id="im">匯入備份</button><button id="ins" hidden>安裝成 App</button><input id="imf" type="file" accept=".json" hidden></footer>
+:root {
+    --title-color: #566270;
+    --text-color: #566270;
+    --muted-color: #9b9a97;
+    --border-color: #a5b3e0;
+    --hover-color: #e0e3ea;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: #fffff3;
+    color: var(--text-color);
+    font: 15px/1.55 "Huninn", -apple-system, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+    padding-bottom: 110px;
+}
+
+.page-width {
+    max-width: 640px;
+    margin: auto;
+    padding: 0 16px;
+}
+
+h1 {
+    font-size: 28px;
+    margin: 28px 0 12px;
+    color: var(--title-color);
+    text-align: center;
+}
+
+.sub-title {
+    font-size: 18px;
+    text-indent: 1em;
+}
+
+input, select, textarea, button {
+    font: inherit;
+    color: inherit;
+}
+
+input, select, textarea {
+    width: 100%;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 9px 10px;
+    background: #fff;
+}
+
+input:focus, select:focus, textarea:focus, button:focus-visible {
+    outline: 2px solid #2383e2;
+    outline-offset: -1px;
+}
+
+#folder-tabs {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 12px 0 4px;
+    scrollbar-width: none;
+}
+
+.button {
+    flex: none;
+    border: 2px outset var(--border-color);
+    background: #fff;
+    border-radius: 12px;
+    padding: 5px 11px;
+    cursor: pointer;
+}
+
+.button:hover:not(.add-button) {
+    background: var(--hover-color);
+    color: var(--text-color);
+    border: 2px outset #556390;
+    transform: translateY(-1px);
+} 
+
+.button.on {
+    background: var(--text-color);
+    color: #fff;
+    border: 2px inset var(--text-color);
+}
+
+.button.add-button {
+    color: var(--muted-color);
+    border-style: dashed;
+    border-color: var(--muted-color);
+}
+
+#folder-actions {
+    display: flex;
+    gap: 16px;
+    padding: 4px 0;
+}
+
+#folder-actions button, footer button {
+    border: 0;
+    background: 0;
+    color: var(--muted-color);
+    font-size: 13px;
+    padding: 6px 0;
+}
+
+.item-card {
+    display: block;
+    padding: 12px 4px;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+}
+
+.item-card:active {
+    background: var(--hover-color);
+}
+
+.item-title {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.item-meta {
+    color: var(--muted-color);
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.item-note {
+    font-size: 14px;
+    color: #605e59;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-top: 2px;
+}
+
+.empty-message {
+    color: var(--muted-color);
+    text-align: center;
+    padding: 48px 16px;
+}
+
+footer {
+    display: flex;
+    gap: 18px;
+    margin-top: 24px;
+}
+
+#add-link-button {
+    position: fixed;
+    right: 20px;
+    bottom: calc(20px + env(safe-area-inset-bottom));
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    border: 0;
+    background: var(--text-color);
+    color: #fff;
+    font-size: 28px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, .25);
+}
+
+.backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .35);
+    z-index: 5;
+}
+
+.bottom-sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 6;
+    background: #fff;
+    border-radius: 14px 14px 0 0;
+    padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+    display: grid;
+    gap: 10px;
+    max-width: 640px;
+    margin: auto;
+}
+
+.bottom-sheet h2 {
+    margin: 0;
+    font-size: 17px;
+}
+
+.button-row {
+    display: flex;
+    gap: 10px;
+}
+
+.button-row button {
+    flex: 1;
+}
+
+.secondary-button, .primary-button {
+    border-radius: 6px;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    background: #fff;
+}
+
+.primary-button {
+    background: var(--text-color);
+    color: #fff;
+    border-color: var(--text-color);
+}
+
+.detail-page {
+    position: fixed;
+    inset: 0;
+    z-index: 7;
+    background: #fff;
+    overflow: auto;
+    padding: 0 max(16px, calc((100% - 608px) / 2)) 40px;
+}
+
+.detail-top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: calc(10px + env(safe-area-inset-top)) 0 8px;
+    position: sticky;
+    top: 0;
+    background: #fff;
+}
+
+.detail-top-bar button {
+    border: 0;
+    background: 0;
+    padding: 6px 0;
+}
+
+.detail-top-bar a, .map-link {
+    color: #2383e2;
+    text-decoration: none;
+}
+
+.title-field {
+    border: 0;
+    font-size: 22px;
+    font-weight: 700;
+    padding: 6px 0;
+}
+
+.detail-page label {
+    display: block;
+    margin-top: 14px;
+    color: var(--muted-color);
+    font-size: 13px;
+}
+
+.detail-page label > * {
+    margin-top: 4px;
+    color: var(--text-color);
+    font-size: 15px;
+}
+
+.image-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.image-tile {
+    position: relative;
+    aspect-ratio: 1;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    font-size: 26px;
+    color: var(--muted-color);
+    cursor: pointer;
+}
+
+.image-tile img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.image-tile button {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 24px;
+    height: 24px;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, .6);
+    color: #fff;
+    line-height: 1;
+}
+
+.delete-item-button {
+    margin-top: 28px;
+    border: 0;
+    background: 0;
+    color: #eb5757;
+    padding: 8px 0;
+}
+
+.lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 9;
+    background: rgba(0, 0, 0, .92);
+    display: grid;
+    place-items: center;
+}
+
+.lightbox img {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+#toast-message {
+    position: fixed;
+    left: 50%;
+    bottom: 90px;
+    transform: translateX(-50%);
+    background: var(--text-color);
+    color: #fff;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 14px;
+    z-index: 10;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="page-width">
+    <h1>⊹˚. 📑 留己看 ˖ ࣪⊹</h1>
+    <div class="sub-title"><p>🔖總有一天會回來看的！</p></div>
+    <input id="search-box" type="search" placeholder="🔍搜尋標題、備註、網址……">
+    <nav id="folder-tabs"></nav>
+    <div id="folder-actions"></div>
+    <main id="item-list"></main>
+    <footer>
+        <button id="export-backup-button">匯出備份</button>
+        <button id="import-backup-button">匯入備份</button>
+        <button id="install-app-button" hidden>安裝成 App</button>
+        <input id="import-file-input" type="file" accept=".json" hidden>
+    </footer>
 </div>
-<button id="fab" aria-label="新增連結">+</button>
-<div id="ov"></div>
+<button id="add-link-button" aria-label="新增網址">+</button>
+<div id="overlay-container"></div>
+
 <script>
-const $=s=>document.querySelector(s);
-let S={folders:[],items:[],last:''},cur='all',qs='';
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-const host=u=>{try{return new URL(u).hostname.replace(/^www\./,'')}catch{return u}};
-const plat=u=>{const h=host(u);return /threads/.test(h)?'Threads':/instagram/.test(h)?'Instagram':/facebook|(^|\.)fb\.(com|watch|me)/.test(h)?'Facebook':/youtu/.test(h)?'YouTube':/(^|\.)x\.com|twitter/.test(h)?'X':h};
-const fname=id=>S.folders.find(f=>f.id===id)?.name||'';
-const opts=sel=>'<option value="">未分類</option>'+S.folders.map(f=>`<option value="${f.id}"${f.id===sel?' selected':''}>${esc(f.name)}</option>`).join('');
-const idb=()=>new Promise((r,j)=>{const q=indexedDB.open('linkbox',1);q.onupgradeneeded=()=>q.result.createObjectStore('kv');q.onsuccess=()=>r(q.result);q.onerror=()=>j(q.error)});
-async function load(){try{const d=await idb();return await new Promise(r=>{const g=d.transaction('kv').objectStore('kv').get('s');g.onsuccess=()=>r(g.result);g.onerror=()=>r()})}catch(e){}}
-async function save(){try{const d=await idb();d.transaction('kv','readwrite').objectStore('kv').put(S,'s')}catch(e){}}
-function toast(m){const t=document.createElement('div');t.id='ts';t.textContent=m;document.body.append(t);setTimeout(()=>t.remove(),1800)}
-const shrink=f=>new Promise(r=>{const i=new Image,u=URL.createObjectURL(f);i.onload=()=>{const k=Math.min(1,1000/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=i.width*k;c.height=i.height*k;c.getContext('2d').drawImage(i,0,0,c.width,c.height);URL.revokeObjectURL(u);r(c.toDataURL('image/jpeg',.8))};i.src=u});
+// App state
+const selectElement = selector => document.querySelector(selector);
+let appData = { folders: [], items: [], lastFolderId: '' };
+let currentFolderId = 'all';
+let searchText = '';
 
-function render(){
- const chip=(id,n)=>`<button class="chip${cur===id?' on':''}" data-f="${id}">${esc(n)}</button>`;
- $('#fs').innerHTML=chip('all','全部')+chip('none','未分類')+S.folders.map(f=>chip(f.id,f.name)).join('')+'<button class="chip add" id="nf">＋ 資料夾</button>';
- $('#bar').innerHTML=S.folders.some(f=>f.id===cur)?'<button id="rn">重新命名</button><button id="dl">刪除資料夾</button>':'';
- const k=qs.toLowerCase();
- const L=S.items.filter(i=>(cur==='all'||(cur==='none'?!i.folder:i.folder===cur))&&(!k||[i.title,i.url,i.note,i.addr].join(' ').toLowerCase().includes(k)));
- $('#ls').innerHTML=L.length?L.map(i=>`<div class="it" data-i="${i.id}"><div class="tt">${esc(i.title||host(i.url))}</div><div class="mt">${esc(plat(i.url))}${i.folder?' / '+esc(fname(i.folder)):''}${i.imgs.length?' / 圖片 '+i.imgs.length:''}</div>${i.note?`<div class="nt">${esc(i.note)}</div>`:''}${i.addr?`<div class="nt">📍 ${esc(i.addr)}</div>`:''}</div>`).join(''):`<p class="em">${S.items.length?'沒有符合的項目':'還沒有收藏。<br>在 Threads、IG、FB 按分享並選「連結收藏」，<br>或點右下角 ＋ 貼上連結。'}</p>`;
+// General helpers
+const escapeHtml = text => String(text ?? '').replace(/[&<>"']/g, character => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+}[character]));
+
+const makeUniqueId = () =>
+    Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+const getHostName = url => {
+    try {
+        return new URL(url).hostname.replace(/^www\./, '');
+    } catch {
+        return url;
+    }
+};
+
+const getPlatformName = url => {
+    const hostName = getHostName(url);
+
+    if (/threads/.test(hostName)) return 'Threads';
+    if (/instagram/.test(hostName)) return 'Instagram';
+    if (/facebook|(^|\.)fb\.(com|watch|me)/.test(hostName)) return 'Facebook';
+    if (/youtu/.test(hostName)) return 'YouTube';
+    if (/(^|\.)x\.com|twitter/.test(hostName)) return 'X';
+
+    return hostName;
+};
+
+const getFolderName = folderId =>
+    appData.folders.find(folder => folder.id === folderId)?.name || '';
+
+const folderOptionsHtml = selectedFolderId => {
+    const folderOptions = appData.folders.map(folder => `
+        <option value="${folder.id}"${folder.id === selectedFolderId ? ' on' : ''}>
+            ${escapeHtml(folder.name)}
+        </option>
+    `).join('');
+
+    return '<option value="">未分類</option>' + folderOptions;
+};
+
+// IndexedDB storage
+const openDatabase = () => new Promise((resolve, reject) => {
+    const openRequest = indexedDB.open('linkbox', 1);
+
+    openRequest.onupgradeneeded = () => {
+        openRequest.result.createObjectStore('keyValueStore');
+    };
+    openRequest.onsuccess = () => resolve(openRequest.result);
+    openRequest.onerror = () => reject(openRequest.error);
+});
+
+async function loadData() {
+    try {
+        const database = await openDatabase();
+
+        return await new Promise(resolve => {
+            const store = database.transaction('keyValueStore').objectStore('keyValueStore');
+            const getRequest = store.get('appData');
+
+            getRequest.onsuccess = () => resolve(getRequest.result);
+            getRequest.onerror = () => resolve();
+        });
+    } catch (error) {}
 }
-$('#fs').onclick=e=>{const b=e.target.closest('button');if(!b)return;
- if(b.id==='nf'){const n=prompt('資料夾名稱');if(n?.trim()){const f={id:uid(),name:n.trim()};S.folders.push(f);cur=f.id;save()}}
- else cur=b.dataset.f;render()};
-$('#bar').onclick=e=>{const f=S.folders.find(x=>x.id===cur);if(!f)return;
- if(e.target.id==='rn'){const n=prompt('新的名稱',f.name);if(n?.trim()){f.name=n.trim();save()}}
- if(e.target.id==='dl'&&confirm(`刪除資料夾「${f.name}」？裡面的項目會移到未分類。`)){S.items.forEach(i=>{if(i.folder===f.id)i.folder=''});S.folders=S.folders.filter(x=>x!==f);cur='all';save()}
- render()};
-$('#ls').onclick=e=>{const d=e.target.closest('[data-i]');if(d)showDet(d.dataset.i)};
-$('#q').oninput=e=>{qs=e.target.value;render()};
-$('#fab').onclick=()=>showAdd({folder:S.folders.some(f=>f.id===cur)?cur:S.last});
 
-function showAdd(p={}){
- const o=$('#ov');
- o.innerHTML=`<div class="bk"></div><div class="sh"><h2>儲存連結</h2><input id="au" type="url" placeholder="貼上網址" value="${esc(p.url||'')}"><input id="at" placeholder="標題（選填）" value="${esc(p.title||'')}"><select id="af">${opts(p.folder??S.last)}</select><div class="row"><button class="g" id="ac">取消</button><button class="p" id="as">儲存</button></div></div>`;
- const close=()=>o.innerHTML='';
- o.querySelector('.bk').onclick=$('#ac').onclick=close;
- $('#as').onclick=()=>{
-  let url=$('#au').value.trim();if(!url)return toast('請輸入網址');
-  if(!/^https?:\/\//i.test(url))url='https://'+url;
-  const ex=S.items.find(i=>i.url===url);
-  if(ex){close();toast('這個連結已經收藏過了');return showDet(ex.id)}
-  const folder=$('#af').value;
-  S.items.unshift({id:uid(),url,title:$('#at').value.trim(),note:'',addr:'',imgs:[],folder,t:Date.now()});
-  S.last=folder;save();close();render();toast('已儲存')};
+async function saveData() {
+    try {
+        const database = await openDatabase();
+        const store = database.transaction('keyValueStore', 'readwrite').objectStore('keyValueStore');
+
+        store.put(appData, 'appData');
+    } catch (error) {}
 }
 
-function showDet(id){
- const i=S.items.find(x=>x.id===id);if(!i)return;const o=$('#ov');
- const draw=()=>{
-  o.innerHTML=`<div class="pg"><div class="top"><button id="bk">‹ 返回</button><a href="${esc(i.url)}" target="_blank" rel="noopener">開啟連結</a></div>
-  <input class="ti" id="dt" placeholder="標題" value="${esc(i.title)}">
-  <div class="mt">${esc(plat(i.url))}　${esc(i.url)}</div>
-  <label>資料夾<select id="df">${opts(i.folder)}</select></label>
-  <label>備註<textarea id="dn" rows="5" placeholder="想記下來的事…">${esc(i.note)}</textarea></label>
-  <label>地址<input id="da" placeholder="店名或地址" value="${esc(i.addr)}"></label>
-  <a class="lk" id="ml" target="_blank" rel="noopener">在地圖開啟</a>
-  <div class="gr">${i.imgs.map((s,n)=>`<div class="th"><img src="${s}" data-v="${n}" alt=""><button data-x="${n}" aria-label="移除圖片">×</button></div>`).join('')}<label class="th">＋<input id="di" type="file" accept="image/*" multiple hidden></label></div>
-  <button class="dng" id="dx">刪除此項目</button></div>`;
-  const up=(k,v)=>{i[k]=v;save()};
-  const setMap=()=>{const a=$('#ml');a.hidden=!i.addr;a.href='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(i.addr)};setMap();
-  $('#bk').onclick=()=>{o.innerHTML='';render()};
-  $('#dt').oninput=e=>up('title',e.target.value);
-  $('#df').onchange=e=>up('folder',e.target.value);
-  $('#dn').oninput=e=>up('note',e.target.value);
-  $('#da').oninput=e=>{up('addr',e.target.value);setMap()};
-  $('#di').onchange=async e=>{for(const f of e.target.files)i.imgs.push(await shrink(f));save();draw()};
-  o.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>{i.imgs.splice(+b.dataset.x,1);save();draw()});
-  o.querySelectorAll('[data-v]').forEach(m=>m.onclick=()=>{const l=document.createElement('div');l.className='lb';l.innerHTML=`<img src="${i.imgs[+m.dataset.v]}" alt="">`;l.onclick=()=>l.remove();document.body.append(l)});
-  $('#dx').onclick=()=>{if(confirm('刪除這個項目？')){S.items=S.items.filter(x=>x!==i);save();o.innerHTML='';render()}};
- };draw();
+// UI helpers
+function showToast(message) {
+    const toastElement = document.createElement('div');
+    toastElement.id = 'toast-message';
+    toastElement.textContent = message;
+    document.body.append(toastElement);
+
+    setTimeout(() => toastElement.remove(), 1800);
 }
 
-$('#ex').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S)],{type:'application/json'}));a.download='linkbox-backup.json';a.click()};
-$('#im').onclick=()=>$('#imf').click();
-$('#imf').onchange=async e=>{try{const d=JSON.parse(await e.target.files[0].text());
- d.folders.forEach(f=>{if(!S.folders.some(x=>x.id===f.id))S.folders.push(f)});
- d.items.forEach(i=>{if(!S.items.some(x=>x.id===i.id))S.items.push(i)});
- S.items.sort((a,b)=>b.t-a.t);save();render();toast('已匯入')}catch{toast('檔案格式不正確')}};
-let ip;addEventListener('beforeinstallprompt',e=>{e.preventDefault();ip=e;$('#ins').hidden=false});
-$('#ins').onclick=()=>ip?.prompt();
+const shrinkImage = file => new Promise(resolve => {
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
 
-(async()=>{
- const d=await load();if(d)S=Object.assign(S,d);render();
- const p=new URLSearchParams(location.search);
- if(['url','text','title'].some(k=>p.has(k))){
-  const raw=['url','text','title'].map(k=>p.get(k)||'').join(' ');
-  const url=(raw.match(/https?:\/\/[^\s]+/)||[''])[0];
-  let title=(p.get('title')||'').trim();if(!title)title=(p.get('text')||'').replace(url,'').trim();
-  if(title===url)title='';
-  history.replaceState(null,'',location.pathname);
-  showAdd({url,title:title.slice(0,120)});
- }
- if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+    image.onload = () => {
+        const scale = Math.min(1, 1000 / Math.max(image.width, image.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = image.width * scale;
+        canvas.height = image.height * scale;
+        canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(objectUrl);
+        resolve(canvas.toDataURL('image/jpeg', 0.8));
+    };
+
+    image.src = objectUrl;
+});
+
+// Page rendering
+function renderPage() {
+    const makeFolderChip = (folderId, folderName) => `
+        <button class="button${currentFolderId === folderId ? ' on' : ''}"
+                data-folder-id="${folderId}">
+            ${escapeHtml(folderName)}
+        </button>
+    `;
+
+    selectElement('#folder-tabs').innerHTML =
+        makeFolderChip('all', '全部') +
+        makeFolderChip('none', '未分類') +
+        appData.folders.map(folder => makeFolderChip(folder.id, folder.name)).join('') +
+        '<button class="button add-button" id="new-folder-button">＋ 資料夾</button>';
+
+    const isFolderSelected = appData.folders.some(folder => folder.id === currentFolderId);
+    selectElement('#folder-actions').innerHTML = isFolderSelected
+        ? '<button id="rename-folder-button">重新命名</button><button id="delete-folder-button">刪除資料夾</button>'
+        : '';
+
+    const keyword = searchText.toLowerCase();
+    const visibleItems = appData.items.filter(item => {
+        const matchesFolder =
+            currentFolderId === 'all' ||
+            (currentFolderId === 'none'
+                ? !item.folderId
+                : item.folderId === currentFolderId);
+        const searchableText = [
+            item.title,
+            item.url,
+            item.note,
+            item.address
+        ].join(' ').toLowerCase();
+        const matchesSearch = !keyword || searchableText.includes(keyword);
+
+        return matchesFolder && matchesSearch;
+    });
+
+    selectElement('#item-list').innerHTML = visibleItems.length
+        ? visibleItems.map(item => `
+            <div class="item-card" data-item-id="${item.id}">
+                <div class="item-title">${escapeHtml(item.title || getHostName(item.url))}</div>
+                <div class="item-meta">
+                    ${escapeHtml(getPlatformName(item.url))}
+                    ${item.folderId ? ' / ' + escapeHtml(getFolderName(item.folderId)) : ''}
+                    ${item.images.length ? ' / 圖片 ' + item.images.length : ''}
+                </div>
+                ${item.note ? `<div class="item-note">${escapeHtml(item.note)}</div>` : ''}
+                ${item.address ? `<div class="item-note">📍 ${escapeHtml(item.address)}</div>` : ''}
+            </div>
+        `).join('')
+        : `<p class="empty-message">${appData.items.length
+            ? '沒有符合的項目'
+            : '還沒有收藏。<br>在 Threads、IG、FB 按分享並選「收藏網址」，<br>或點右下角 ＋ 貼上網址。'}</p>`;
+}
+
+// Main page event handlers
+selectElement('#folder-tabs').onclick = event => {
+    const clickedButton = event.target.closest('button');
+    if (!clickedButton) return;
+
+    if (clickedButton.id === 'new-folder-button') {
+        const folderName = prompt('資料夾名稱');
+
+        if (folderName?.trim()) {
+            const newFolder = {
+                id: makeUniqueId(),
+                name: folderName.trim()
+            };
+            appData.folders.push(newFolder);
+            currentFolderId = newFolder.id;
+            saveData();
+        }
+    } else {
+        currentFolderId = clickedButton.dataset.folderId;
+    }
+
+    renderPage();
+};
+
+selectElement('#folder-actions').onclick = event => {
+    const currentFolder = appData.folders.find(folder => folder.id === currentFolderId);
+    if (!currentFolder) return;
+
+    if (event.target.id === 'rename-folder-button') {
+        const newName = prompt('新的名稱', currentFolder.name);
+
+        if (newName?.trim()) {
+            currentFolder.name = newName.trim();
+            saveData();
+        }
+    }
+
+    if (
+        event.target.id === 'delete-folder-button' &&
+        confirm(`刪除資料夾「${currentFolder.name}」？原有項目將會移到未分類。`)
+    ) {
+        appData.items.forEach(item => {
+            if (item.folderId === currentFolder.id) item.folderId = '';
+        });
+        appData.folders = appData.folders.filter(folder => folder !== currentFolder);
+        currentFolderId = 'all';
+        saveData();
+    }
+
+    renderPage();
+};
+
+selectElement('#item-list').onclick = event => {
+    const clickedCard = event.target.closest('[data-item-id]');
+    if (clickedCard) showDetailPage(clickedCard.dataset.itemId);
+};
+
+selectElement('#search-box').oninput = event => {
+    searchText = event.target.value;
+    renderPage();
+};
+
+selectElement('#add-link-button').onclick = () => {
+    const selectedFolderId = appData.folders.some(folder => folder.id === currentFolderId)
+        ? currentFolderId
+        : appData.lastFolderId;
+
+    showAddSheet({ folderId: selectedFolderId });
+};
+
+// Add-link sheet
+function showAddSheet(prefill = {}) {
+    const overlayContainer = selectElement('#overlay-container');
+
+    overlayContainer.innerHTML = `
+        <div class="backdrop"></div>
+        <div class="bottom-sheet">
+            <h2>儲存網址</h2>
+            <input id="add-url-input" type="url" placeholder="貼上網址"
+                   value="${escapeHtml(prefill.url || '')}">
+            <input id="add-title-input" placeholder="標題（選填）"
+                   value="${escapeHtml(prefill.title || '')}">
+            <select id="add-folder-select">
+                ${folderOptionsHtml(prefill.folderId ?? appData.lastFolderId)}
+            </select>
+            <div class="button-row">
+                <button class="secondary-button" id="add-cancel-button">取消</button>
+                <button class="primary-button" id="add-save-button">儲存</button>
+            </div>
+        </div>
+    `;
+
+    const closeSheet = () => {
+        overlayContainer.innerHTML = '';
+    };
+
+    overlayContainer.querySelector('.backdrop').onclick = closeSheet;
+    selectElement('#add-cancel-button').onclick = closeSheet;
+
+    selectElement('#add-save-button').onclick = () => {
+        let url = selectElement('#add-url-input').value.trim();
+        if (!url) return showToast('請輸入網址');
+        if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+
+        const existingItem = appData.items.find(item => item.url === url);
+        if (existingItem) {
+            closeSheet();
+            showToast('已經收藏過了！(｀・ω・´)');
+            return showDetailPage(existingItem.id);
+        }
+
+        const folderId = selectElement('#add-folder-select').value;
+        const newItem = {
+            id: makeUniqueId(),
+            url,
+            title: selectElement('#add-title-input').value.trim(),
+            note: '',
+            address: '',
+            images: [],
+            folderId,
+            createdAt: Date.now()
+        };
+
+        appData.items.unshift(newItem);
+        appData.lastFolderId = folderId;
+        saveData();
+        closeSheet();
+        renderPage();
+        showToast('已儲存( ˘ω˘ )');
+    };
+}
+
+// Item detail view
+function showDetailPage(itemId) {
+    const item = appData.items.find(candidate => candidate.id === itemId);
+    if (!item) return;
+
+    const overlayContainer = selectElement('#overlay-container');
+
+    const drawDetailPage = () => {
+        const imageTiles = item.images.map((imageSource, imageIndex) => `
+            <div class="image-tile">
+                <img src="${imageSource}" data-view-image-index="${imageIndex}" alt="">
+                <button data-remove-image-index="${imageIndex}" aria-label="移除圖片">×</button>
+            </div>
+        `).join('');
+
+        overlayContainer.innerHTML = `
+            <div class="detail-page">
+                <div class="detail-top-bar">
+                    <button id="detail-back-button">‹ 返回</button>
+                    <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">開啟連結</a>
+                </div>
+                <input class="title-field" id="detail-title" placeholder="標題"
+                       value="${escapeHtml(item.title)}">
+                <div class="item-meta">
+                    ${escapeHtml(getPlatformName(item.url))}　${escapeHtml(item.url)}
+                </div>
+                <label>
+                    資料夾
+                    <select id="detail-folder-select">${folderOptionsHtml(item.folderId)}</select>
+                </label>
+                <label>
+                    備註
+                    <textarea id="detail-note-input" rows="5" placeholder="想記下來的事…">${escapeHtml(item.note)}</textarea>
+                </label>
+                <label>
+                    地址
+                    <input id="detail-address-input" placeholder="店名或地址"
+                           value="${escapeHtml(item.address)}">
+                </label>
+                <a class="map-link" id="map-link" target="_blank" rel="noopener">在地圖開啟</a>
+                <div class="image-grid">
+                    ${imageTiles}
+                    <label class="image-tile">
+                        ＋
+                        <input id="detail-image-input" type="file" accept="image/*" multiple hidden>
+                    </label>
+                </div>
+                <button class="delete-item-button" id="detail-delete-button">刪除此項目</button>
+            </div>
+        `;
+
+        const updateField = (fieldName, value) => {
+            item[fieldName] = value;
+            saveData();
+        };
+
+        const updateMapLink = () => {
+            const mapLink = selectElement('#map-link');
+            mapLink.hidden = !item.address;
+            mapLink.href =
+                'https://www.google.com/maps/search/?api=1&query=' +
+                encodeURIComponent(item.address);
+        };
+
+        updateMapLink();
+
+        selectElement('#detail-back-button').onclick = () => {
+            overlayContainer.innerHTML = '';
+            renderPage();
+        };
+        selectElement('#detail-title').oninput = event => {
+            updateField('title', event.target.value);
+        };
+        selectElement('#detail-folder-select').onchange = event => {
+            updateField('folderId', event.target.value);
+        };
+        selectElement('#detail-note-input').oninput = event => {
+            updateField('note', event.target.value);
+        };
+        selectElement('#detail-address-input').oninput = event => {
+            updateField('address', event.target.value);
+            updateMapLink();
+        };
+
+        selectElement('#detail-image-input').onchange = async event => {
+            for (const file of event.target.files) {
+                item.images.push(await shrinkImage(file));
+            }
+            saveData();
+            drawDetailPage();
+        };
+
+        overlayContainer.querySelectorAll('[data-remove-image-index]').forEach(removeButton => {
+            removeButton.onclick = () => {
+                item.images.splice(Number(removeButton.dataset.removeImageIndex), 1);
+                saveData();
+                drawDetailPage();
+            };
+        });
+
+        overlayContainer.querySelectorAll('[data-view-image-index]').forEach(imageElement => {
+            imageElement.onclick = () => {
+                const imageIndex = Number(imageElement.dataset.viewImageIndex);
+                const lightbox = document.createElement('div');
+                lightbox.className = 'lightbox';
+                lightbox.innerHTML = `<img src="${item.images[imageIndex]}" alt="">`;
+                lightbox.onclick = () => lightbox.remove();
+                document.body.append(lightbox);
+            };
+        });
+
+        selectElement('#detail-delete-button').onclick = () => {
+            if (!confirm('刪除這個項目？')) return;
+
+            appData.items = appData.items.filter(candidate => candidate !== item);
+            saveData();
+            overlayContainer.innerHTML = '';
+            renderPage();
+        };
+    };
+
+    drawDetailPage();
+}
+
+// Backup import and export
+selectElement('#export-backup-button').onclick = () => {
+    const backupBlob = new Blob([JSON.stringify(appData)], { type: 'application/json' });
+    const downloadLink = document.createElement('a');
+    downloadLink.href = URL.createObjectURL(backupBlob);
+    downloadLink.download = 'linkbox-backup.json';
+    downloadLink.click();
+};
+
+selectElement('#import-backup-button').onclick = () => {
+    selectElement('#import-file-input').click();
+};
+
+selectElement('#import-file-input').onchange = async event => {
+    try {
+        const backup = JSON.parse(await event.target.files[0].text());
+
+        backup.folders.forEach(folder => {
+            const alreadyExists = appData.folders.some(existing => existing.id === folder.id);
+            if (!alreadyExists) appData.folders.push(folder);
+        });
+        backup.items.forEach(item => {
+            const alreadyExists = appData.items.some(existing => existing.id === item.id);
+            if (!alreadyExists) appData.items.push(item);
+        });
+
+        appData.items.sort((first, second) => second.createdAt - first.createdAt);
+        saveData();
+        renderPage();
+        showToast('已匯入');
+    } catch {
+        showToast('檔案格式不正確');
+    }
+};
+
+// Install prompt
+let installPromptEvent;
+addEventListener('beforeinstallprompt', event => {
+    event.preventDefault();
+    installPromptEvent = event;
+    selectElement('#install-app-button').hidden = false;
+});
+
+selectElement('#install-app-button').onclick = () => {
+    installPromptEvent?.prompt();
+};
+
+// App startup and shared-link handling
+(async function startApp() {
+    const savedData = await loadData();
+    if (savedData) appData = Object.assign(appData, savedData);
+
+    renderPage();
+
+    const sharedParams = new URLSearchParams(location.search);
+    const hasSharedContent = ['url', 'text', 'title'].some(name => sharedParams.has(name));
+
+    if (hasSharedContent) {
+        const allSharedText = ['url', 'text', 'title']
+            .map(name => sharedParams.get(name) || '')
+            .join(' ');
+        const url = (allSharedText.match(/https?:\/\/[^\s]+/) || [''])[0];
+        let title = (sharedParams.get('title') || '').trim();
+
+        if (!title) {
+            title = (sharedParams.get('text') || '').replace(url, '').trim();
+        }
+        if (title === url) title = '';
+
+        history.replaceState(null, '', location.pathname);
+        showAddSheet({ url, title: title.slice(0, 120) });
+    }
+
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
 })();
-</script></body></html>
+
+</script>
+</body>
+</html>
