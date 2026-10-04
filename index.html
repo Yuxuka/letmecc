@@ -57,10 +57,46 @@ h1 {
 }
 
 .sub-title {
+    position: relative;
+    isolation: isolate;
+    width: fit-content;
+    margin: 26px 0 12px 1em;
+    padding: 12px 18px;
     font-family: var(--font-title);
     font-size: 18px;
-    text-indent: 1em;
     color: var(--muted-color);
+}
+
+.sub-title h4 {
+    margin: 0;
+}
+
+/* 對話框本體：dotted、白色 50% 透明，上緣在尾巴接合處留一個缺口 */
+.sub-title::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border: 2px dotted var(--border-color);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .5);
+    mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
+    mask-size: 100% 100%, .9em 2px;
+    mask-position: 0 0, 1.15em 0;
+    mask-repeat: no-repeat;
+    mask-composite: exclude;
+}
+
+/* 小尾巴：兩邊都是曲線的 dotted，尖端朝右（title 方向） */
+.sub-title::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    left: 1em;
+    bottom: calc(100% - 2px);
+    width: 1.5em;
+    height: 1em;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 20' preserveAspectRatio='none'%3E%3Cpath d='M3 20V19C3 10 13 4 27 2C19 6 18 13 21 19V20Z' fill='%23fff' fill-opacity='.5'/%3E%3Cpath d='M3 19C3 10 13 4 27 2C19 6 18 13 21 19' fill='none' stroke='%23a5b3e0' stroke-width='2.2' stroke-linecap='round' stroke-dasharray='0 4.4'/%3E%3C/svg%3E") no-repeat center / 100% 100%;
 }
 
 input, select, textarea, button {
@@ -537,7 +573,7 @@ const getFolderName = folderId =>
 
 const folderOptionsHtml = selectedFolderId => {
     const folderOptions = appData.folders.map(folder => `
-        <option value="${folder.id}"${folder.id === selectedFolderId ? ' on' : ''}>
+        <option value="${folder.id}"${folder.id === selectedFolderId ? ' selected' : ''}>
             ${escapeHtml(folder.name)}
         </option>
     `).join('');
