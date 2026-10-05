@@ -61,7 +61,7 @@ hr {
     height: 1px;
     margin: 5% auto;
     text-align: center;
-    background-color: #9dc8c8;
+    background-color: #9db0d8;
     border: none;
 }
 
@@ -74,6 +74,7 @@ hr {
     font-family: var(--font-title);
     font-size: 18px;
     color: var(--muted-color);
+    cursor: pointer;
 }
 
 .sub-title h4 {
@@ -418,6 +419,13 @@ footer {
     font-size: 15px;
 }
 
+.item-by {
+    text-align: right;
+    font-size: 12px;
+    color: var(--muted-color);
+    margin-top: 6px;
+}
+
 .image-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -520,16 +528,124 @@ footer {
         animation: none !important;
     }
 }
+
+/* Menu button */
+#menu-button {
+    position: absolute;
+    top: calc(14px + env(safe-area-inset-top));
+    left: 14px;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    background: #fff;
+    border: 2px solid var(--line-color);
+    border-radius: 12px;
+    box-shadow: 0 2px 0 var(--line-color);
+}
+
+#menu-button span {
+    width: 18px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--text-color);
+}
+
+/* Sidebar */
+#sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 5;
+    background: rgba(86, 98, 112, .35);
+}
+
+#sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 6;
+    width: min(82vw, 320px);
+    overflow-y: auto;
+    padding: calc(16px + env(safe-area-inset-top)) 14px 24px;
+    background: #fffff3;
+    box-shadow: 4px 0 24px rgba(86, 98, 112, .15);
+    border-radius: 0 22px 22px 0;
+    transform: translateX(-105%);
+    transition: transform .2s;
+}
+
+body.sidebar-open #sidebar { transform: none; }
+body.sidebar-open #sidebar-backdrop { display: block; }
+
+.side-title {
+    margin: 22px 0 8px;
+    font-size: 14px;
+    color: var(--muted-color);
+}
+
+.side-room, .side-member {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 4px;
+    overflow-wrap: anywhere;
+}
+
+.side-room-button, .side-room button, .side-member button {
+    border: 2px dashed var(--border-color);
+    border-radius: 999px;
+    background: #fff;
+    padding: 4px 12px;
+    font-size: 13px;
+    color: var(--muted-color);
+}
+
+.side-room-button { width: 100%; padding: 8px 12px; }
+
+.side-folder {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    margin-top: 6px;
+    background: #fff;
+    border: 2px solid #e6eaf7;
+    border-radius: 14px;
+    text-align: left;
+}
+
+.side-item, .side-empty {
+    margin: 4px 0 0 14px;
+    padding: 6px 10px;
+    border-left: 2px dotted var(--border-color);
+    font-size: 14px;
+    overflow-wrap: anywhere;
+}
+
+.side-item { cursor: pointer; }
+.side-empty { color: var(--muted-color); }
+
 </style>
 
 
 </head>
 
 <body>
+<button id="menu-button" aria-label="開啟選單"><span></span><span></span><span></span></button>
+<div id="sidebar-backdrop"></div>
+<aside id="sidebar"></aside>
 
 <div class="page-width">
     <h1><b>⊹˚. 📑 留己看 ˖ ࣪⊹</b></h1>
-    <div class="sub-title"><h4>……會記得回來看的啦！</h4></div><hr>
+    <div class="sub-title" id="sub-title"><h4 id="sub-title-text">……會記得回來看的啦！</h4></div><hr>
     <input id="search-box" type="search" placeholder="🔍搜尋標題、備註、網址……">
     <nav id="folder-tabs"></nav>
     <div id="folder-actions"></div>
@@ -547,7 +663,7 @@ footer {
 <script>
 // App state
 const selectElement = selector => document.querySelector(selector);
-let appData = { folders: [], items: [], lastFolderId: '' };
+let appData = { folders: [], items: [], lastFolderId: '', subTitle: ''};
 let currentFolderId = 'all';
 let searchText = '';
 
@@ -621,7 +737,10 @@ async function loadData() {
     } catch (error) {}
 }
 
+
+
 async function saveData() {
+    if (cloud.roomId) return scheduleCloudPush();
     try {
         const database = await openDatabase();
         const store = database.transaction('keyValueStore', 'readwrite').objectStore('keyValueStore');
@@ -645,19 +764,19 @@ const shrinkImage = file => new Promise(resolve => {
     const objectUrl = URL.createObjectURL(file);
 
     image.onload = () => {
-        const scale = Math.min(1, 1000 / Math.max(image.width, image.height));
+        const scale = Math.min(1, 800 / Math.max(image.width, image.height));
         const canvas = document.createElement('canvas');
         canvas.width = image.width * scale;
         canvas.height = image.height * scale;
         canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
         URL.revokeObjectURL(objectUrl);
-        resolve(canvas.toDataURL('image/jpeg', 0.8));
+        resolve(canvas.toDataURL('image/jpeg', 0.6));
     };
 
     image.src = objectUrl;
 });
 
-// Page rendering
+// Render page
 function renderPage() {
     const makeFolderChip = (folderId, folderName) => `
         <button class="button${currentFolderId === folderId ? ' on' : ''}"
@@ -706,11 +825,15 @@ function renderPage() {
                 </div>
                 ${item.note ? `<div class="item-note">${escapeHtml(item.note)}</div>` : ''}
                 ${item.address ? `<div class="item-note">📍 ${escapeHtml(item.address)}</div>` : ''}
+                ${item.addedBy ? `<div class="item-by">by ${escapeHtml(item.addedBy)}</div>` : ''}
             </div>
         `).join('')
         : `<p class="empty-message">${appData.items.length
             ? '找不到……(´-ω-｀)'
             : '這裏還沒有東東。₍ᵔ- -ᵔ₎<br>可以在網頁裏按分享到「留己看」，<br>或者點右下角 ＋ 貼上網址。ᐕ)'}</p>`;
+
+    selectElement('#sub-title-text').textContent = appData.subTitle || defaultSubTitle;
+    renderSidebar();
 }
 
 // Main page event handlers
@@ -833,6 +956,7 @@ function showAddSheet(prefill = {}) {
             address: '',
             images: [],
             folderId,
+            addedBy: cloud.roomId ? getMyName() : '',
             createdAt: Date.now()
         };
 
@@ -931,6 +1055,7 @@ function showDetailPage(itemId) {
 
         selectElement('#detail-image-input').onchange = async event => {
             for (const file of event.target.files) {
+                if (item.images.length >= 5) { showToast('每個項目最多 5 張圖片'); break; }
                 item.images.push(await shrinkImage(file));
             }
             saveData();
@@ -996,6 +1121,7 @@ selectElement('#import-file-input').onchange = async event => {
         });
 
         appData.items.sort((first, second) => second.createdAt - first.createdAt);
+        if (backup.subTitle) appData.subTitle = backup.subTitle;
         saveData();
         renderPage();
         showToast('已匯入');
@@ -1016,12 +1142,331 @@ selectElement('#install-app-button').onclick = () => {
     installPromptEvent?.prompt();
 };
 
+// ---- Sub-title (可自行修改) ----
+const defaultSubTitle = selectElement('#sub-title-text').textContent;
+
+selectElement('#sub-title').onclick = () => {
+    const input = prompt('修改副標題（留空會還原成預設）', appData.subTitle || defaultSubTitle);
+    if (input === null) return;
+    const newSubTitle = input.trim();
+    appData.subTitle = newSubTitle === defaultSubTitle ? '' : newSubTitle;
+    saveData();
+    renderPage();
+};
+
+// ---- Firebase 設定（從 Firebase 控制台複製貼上；留空 = 只用本機模式）----
+const firebaseConfig = {
+    apiKey: 'AIzaSyAhXxoSUG646MUhQENpvRmvylNSS8Yq2qI',
+    authDomain: 'letmecc-b7a10.firebaseapp.com',
+    projectId: 'letmecc-b7a10',
+    appId: '1:640120359304:web:4ad023baba66f9d730923d'
+};
+const FIREBASE_VERSION = '12.19.0'; // 若載入失敗，改成 Firebase 控制台 CDN 範例裡的版本
+const ROOM_EMAIL_DOMAIN = '@letmecc.app'; // 必須和安全規則裡的一致
+const isCloudConfigured = Boolean(firebaseConfig.apiKey);
+
+const cloud = { roomId: '', members: [], unsubscribers: [], heartbeatTimer: null };
+const expandedFolderKeys = new Set();
+let syncedJson = {};
+let pushTimer;
+let firebaseTools;
+
+const stableJson = data => JSON.stringify(data, Object.keys(data).sort());
+
+const getMemberId = () => {
+    let memberId = localStorage.getItem('memberId');
+    if (!memberId) {
+        memberId = makeUniqueId();
+        localStorage.setItem('memberId', memberId);
+    }
+    return memberId;
+};
+
+const getMyName = () => {
+    let name = localStorage.getItem('displayName');
+    if (!name) {
+        name = '使用者' + (10 + Math.floor(Math.random() * 90));
+        localStorage.setItem('displayName', name);
+    }
+    return name;
+};
+
+async function loadFirebase() {
+    if (firebaseTools) return firebaseTools;
+    const base = `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/`;
+    const [appModule, authModule, firestoreModule] = await Promise.all([
+        import(base + 'firebase-app.js'),
+        import(base + 'firebase-auth.js'),
+        import(base + 'firebase-firestore.js')
+    ]);
+    const app = appModule.initializeApp(firebaseConfig);
+    firebaseTools = {
+        ...authModule,
+        ...firestoreModule,
+        auth: authModule.getAuth(app),
+        db: firestoreModule.getFirestore(app)
+    };
+    return firebaseTools;
+}
+
+// ---- 同步：本機改動 → 雲端（有延遲，避免每打一個字就寫一次）----
+function scheduleCloudPush() {
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(pushChanges, 600);
+}
+
+async function pushChanges() {
+    if (!cloud.roomId) return;
+    const { db, doc, setDoc, deleteDoc } = await loadFirebase();
+    const currentDocs = {};
+    //{ 'settings/main': { subTitle: appData.subTitle || '' } };
+    if (appData.subTitle || 'settings/main' in syncedJson) {
+        currentDocs['settings/main'] = { subTitle: appData.subTitle || '' };
+    }
+    appData.folders.forEach(folder => { currentDocs['folders/' + folder.id] = folder; });
+    appData.items.forEach(item => { currentDocs['items/' + item.id] = item; });
+
+    const jobs = [];
+    for (const [path, data] of Object.entries(currentDocs)) {
+        const json = stableJson(data);
+        if (syncedJson[path] === json) continue;
+        syncedJson[path] = json;
+        jobs.push(setDoc(doc(db, 'rooms', cloud.roomId, ...path.split('/')), data));
+    }
+    for (const path of Object.keys(syncedJson)) {
+        if (path in currentDocs) continue;
+        delete syncedJson[path];
+        jobs.push(deleteDoc(doc(db, 'rooms', cloud.roomId, ...path.split('/'))));
+    }
+    try {
+        await Promise.all(jobs);
+    } catch (error) {
+        showToast('同步失敗，請稍後再試');
+    }
+}
+
+// ---- 同步：雲端 → 本機 ----
+function applyRemoteChanges(kind, snapshot) {
+    const list = kind === 'folders' ? appData.folders : appData.items;
+    snapshot.docChanges().forEach(change => {
+        if (change.doc.metadata.hasPendingWrites) return;  // 自己剛寫的，略過
+        const data = change.doc.data();
+        const path = kind + '/' + change.doc.id;
+        const index = list.findIndex(entry => entry.id === change.doc.id);
+        if (change.type === 'removed') {
+            if (index >= 0) list.splice(index, 1);
+            delete syncedJson[path];
+            return;
+        }
+        syncedJson[path] = stableJson(data);
+        if (index >= 0) Object.assign(list[index], data);
+        else list.push(data);
+    });
+    if (kind === 'items') appData.items.sort((first, second) => second.createdAt - first.createdAt);
+    renderPage();
+}
+
+// ---- 房間：進入、離開、在線名單 ----
+async function sendHeartbeat() {
+    if (!cloud.roomId || document.visibilityState !== 'visible') return;
+    const { db, doc, setDoc, serverTimestamp } = await loadFirebase();
+    setDoc(
+        doc(db, 'rooms', cloud.roomId, 'members', getMemberId()),
+        { name: getMyName(), lastSeen: serverTimestamp() },
+        { merge: true }
+    ).catch(() => {});
+}
+document.addEventListener('visibilitychange', sendHeartbeat);
+
+async function enterRoom(roomId, { keepLocalData }) {
+    const { db, collection, doc, onSnapshot } = await loadFirebase();
+    stopRoomListeners();
+    cloud.roomId = roomId;
+    syncedJson = {};
+    if (!keepLocalData) appData = { folders: [], items: [], lastFolderId: '', subTitle: '' };
+    currentFolderId = 'all';
+
+    cloud.unsubscribers = [
+        onSnapshot(collection(db, 'rooms', roomId, 'folders'), snapshot => applyRemoteChanges('folders', snapshot)),
+        onSnapshot(collection(db, 'rooms', roomId, 'items'), snapshot => applyRemoteChanges('items', snapshot)),
+        onSnapshot(doc(db, 'rooms', roomId, 'settings', 'main'), snapshot => {
+            if (!snapshot.exists() || snapshot.metadata.hasPendingWrites) return;
+            appData.subTitle = snapshot.data().subTitle || '';
+            syncedJson['settings/main'] = stableJson({ subTitle: appData.subTitle });
+            renderPage();
+        }),
+        onSnapshot(collection(db, 'rooms', roomId, 'members'), snapshot => {
+            cloud.members = snapshot.docs.map(member => ({ id: member.id, ...member.data() }));
+            renderSidebar();
+        })
+    ];
+    sendHeartbeat();
+    cloud.heartbeatTimer = setInterval(() => { sendHeartbeat(); renderSidebar(); }, 25000);
+    renderPage();
+}
+
+function stopRoomListeners() {
+    cloud.unsubscribers.forEach(stopListening => stopListening());
+    clearInterval(cloud.heartbeatTimer);
+    Object.assign(cloud, { roomId: '', members: [], unsubscribers: [], heartbeatTimer: null });
+    syncedJson = {};
+}
+
+async function leaveRoom() {
+    if (!confirm('登出這個房間？房間裡的資料會保留在雲端。')) return;
+    const { auth, signOut } = await loadFirebase();
+    stopRoomListeners();
+    await signOut(auth);
+    appData = Object.assign({ folders: [], items: [], lastFolderId: '', subTitle: '' }, await loadData());
+    currentFolderId = 'all';
+    setSidebarOpen(false);
+    renderPage();
+    showToast('已登出房間');
+}
+
+const authErrorMessages = {
+    'auth/email-already-in-use': '這個房間 ID 已經有人使用了',
+    'auth/invalid-credential': '房間 ID 或密碼不正確',
+    'auth/wrong-password': '房間 ID 或密碼不正確',
+    'auth/user-not-found': '房間 ID 或密碼不正確',
+    'auth/weak-password': '密碼太簡單，請寫至少 6 個字元',
+    'auth/too-many-requests': '嘗試次數太多，請稍後再試'
+};
+
+function showRoomSheet() {
+    const overlayContainer = selectElement('#overlay-container');
+    overlayContainer.innerHTML = `
+        <div class="backdrop"></div>
+        <div class="bottom-sheet">
+            <h2>進入或建立房間</h2>
+            <input id="room-id-input" placeholder="房間 ID（小寫英文、數字、- _，3–20 字）"
+                   autocapitalize="none" autocomplete="off">
+            <input id="room-password-input" type="password" placeholder="房間密碼（至少 6 個字元）"
+                   autocomplete="off">
+            <input id="room-name-input" placeholder="你是誰？" maxlength="20" autocomplete="off" value="${escapeHtml(localStorage.getItem('displayName') || '')}">
+            <div class="button-row">
+                <button class="secondary-button" id="room-create-button">建立新房間</button>
+                <button class="primary-button" id="room-join-button">進入房間</button>
+            </div>
+        </div>
+    `;
+
+    const closeSheet = () => { overlayContainer.innerHTML = ''; };
+    overlayContainer.querySelector('.backdrop').onclick = closeSheet;
+
+    const submit = async isCreating => {
+        const roomId = selectElement('#room-id-input').value.trim().toLowerCase();
+        if (!/^[a-z0-9_-]{3,20}$/.test(roomId)) return showToast('房間 ID 格式不正確');
+        const password = selectElement('#room-password-input').value;
+        if (password.length < 6) return showToast('密碼至少 6 個字元');
+        const enteredName = selectElement('#room-name-input').value.trim().slice(0, 20);
+        if (!enteredName) return showToast('請告訴我你是誰！');
+        localStorage.setItem('displayName', enteredName);
+        try {
+            const { auth, db, doc, setDoc, serverTimestamp, createUserWithEmailAndPassword, signInWithEmailAndPassword } = await loadFirebase();
+            const email = roomId + ROOM_EMAIL_DOMAIN;
+            if (isCreating) {
+                await createUserWithEmailAndPassword(auth, email, password);
+                await setDoc(doc(db, 'rooms', roomId, 'members', getMemberId()),
+                    { name: getMyName(), lastSeen: serverTimestamp(), isOwner: true }, { merge: true });
+            } else {
+                await signInWithEmailAndPassword(auth, email, password);
+            }
+            closeSheet();
+            await enterRoom(roomId, { keepLocalData: isCreating });  // 建立房間時，會把本機現有收藏一起上傳
+            if (isCreating) await pushChanges();
+            showToast(isCreating ? '房間已建立' : '已進入房間');
+        } catch (error) {
+            showToast(authErrorMessages[error.code] || '發生錯誤，請稍後再試');
+        }
+    };
+    selectElement('#room-create-button').onclick = () => submit(true);
+    selectElement('#room-join-button').onclick = () => submit(false);
+}
+
+async function startCloud() {
+    if (!isCloudConfigured) return;
+    try {
+        const { auth } = await loadFirebase();
+        await auth.authStateReady();
+        const user = auth.currentUser;
+        if (user?.email?.endsWith(ROOM_EMAIL_DOMAIN)) {
+            await enterRoom(user.email.replace(ROOM_EMAIL_DOMAIN, ''), { keepLocalData: false });
+        }
+    } catch (error) {}
+}
+
+// ---- 左側欄 ----
+const setSidebarOpen = isOpen => document.body.classList.toggle('sidebar-open', isOpen);
+
+function renderSidebar() {
+    const onlineMembers = cloud.members.filter(member =>
+        !member.lastSeen || Date.now() - member.lastSeen.toMillis() < 70000);
+    const hasGuest = onlineMembers.some(member => !member.isOwner);
+    const myId = getMemberId();
+    let html = '';
+
+    if (isCloudConfigured && !cloud.roomId) {
+        html += '<button class="side-room-button" id="open-room-button">登入／建立房間</button>';
+    }
+    if (cloud.roomId) {
+        html += `<div class="side-room"><span>🏠 ${escapeHtml(cloud.roomId)}</span><button id="leave-room-button">登出房間</button></div>`;
+        html += `<div class="side-room"><span>我的名稱：${escapeHtml(getMyName())}</span><button id="rename-me-button">改名</button></div>`;
+    }
+    if (cloud.roomId && hasGuest) {
+        html += `<h3 class="side-title">在線 ${onlineMembers.length} 人</h3>`;
+        html += onlineMembers.map(member => `<div class="side-member">${escapeHtml(member.name)}${member.isOwner ? '（房主）' : ''}${member.id === myId ? '（你）' : ''}</div>`).join('');
+    }
+
+    const groups = [{ key: 'none', id: '', name: '未分類' }, ...appData.folders.map(folder => ({ key: folder.id, id: folder.id, name: folder.name }))];
+    html += '<h3 class="side-title">大概看一下</h3>';
+    html += groups.map(group => {
+        const groupItems = appData.items.filter(item => (item.folderId || '') === group.id);
+        const isOpen = expandedFolderKeys.has(group.key);
+        const itemRows = groupItems.map(item => `<div class="side-item" data-sidebar-item-id="${item.id}">${escapeHtml(item.title || getHostName(item.url))}</div>`).join('');
+        return `<button class="side-folder" data-toggle-key="${group.key}"><span>${escapeHtml(group.name)} (${groupItems.length})</span><span>${isOpen ? '△' : '▽'}</span></button>`
+            + (isOpen ? (itemRows || '<div class="side-empty">（還沒有東東）</div>') : '');
+    }).join('');
+
+    selectElement('#sidebar').innerHTML = html;
+}
+
+selectElement('#menu-button').onclick = () => { renderSidebar(); setSidebarOpen(true); };
+selectElement('#sidebar-backdrop').onclick = () => setSidebarOpen(false);
+selectElement('#sidebar').onclick = async event => {
+    const target = event.target.closest('button, [data-sidebar-item-id]');
+    if (!target) return;
+    if (target.dataset.toggleKey) {
+        const key = target.dataset.toggleKey;
+        if (expandedFolderKeys.has(key)) expandedFolderKeys.delete(key);
+        else expandedFolderKeys.add(key);
+        renderSidebar();
+    } else if (target.dataset.sidebarItemId) {
+        setSidebarOpen(false);
+        showDetailPage(target.dataset.sidebarItemId);
+    } else if (target.id === 'open-room-button') {
+        setSidebarOpen(false);
+        showRoomSheet();
+    } else if (target.id === 'leave-room-button') {
+        await leaveRoom();
+    } else if (target.id === 'rename-me-button') {
+        const newName = prompt('你的名稱', getMyName());
+        if (newName?.trim()) {
+            localStorage.setItem('displayName', newName.trim().slice(0, 20));
+            sendHeartbeat();
+            renderSidebar();
+        }
+    }
+};
+
 // App startup and shared-link handling
 (async function startApp() {
     const savedData = await loadData();
     if (savedData) appData = Object.assign(appData, savedData);
 
     renderPage();
+    
+    await startCloud();
 
     const sharedParams = new URLSearchParams(location.search);
     const hasSharedContent = ['url', 'text', 'title'].some(name => sharedParams.has(name));
