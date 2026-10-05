@@ -56,12 +56,21 @@ h1 {
     text-shadow: 2px 2px 0 var(--soft-color);
 }
 
+hr {
+    width: 95%;
+    height: 1px;
+    margin: 5% auto;
+    text-align: center;
+    background-color: #9dc8c8;
+    border: none;
+}
+
 .sub-title {
     position: relative;
     isolation: isolate;
     width: fit-content;
     margin: 26px 0 12px 3em;
-    padding: 12px 18px;
+    padding: 12px 30px;
     font-family: var(--font-title);
     font-size: 18px;
     color: var(--muted-color);
@@ -69,6 +78,7 @@ h1 {
 
 .sub-title h4 {
     margin: 0;
+    font-weight: normal;
 }
 
 /* 對話框本體：dotted、白色 50% 透明，上緣在尾巴接合處留一個缺口 */
@@ -377,6 +387,7 @@ footer {
 .detail-top-bar a, .map-link {
     color: var(--link-color);
     text-decoration: none;
+    font-size: 14px;
 }
 
 .title-field {
@@ -453,7 +464,11 @@ footer {
     border-radius: 50%;
     background: rgba(86, 98, 112, .75);
     color: #fff;
-    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    cursor: pointer;
 }
 
 .delete-item-button {
@@ -694,8 +709,8 @@ function renderPage() {
             </div>
         `).join('')
         : `<p class="empty-message">${appData.items.length
-            ? '沒有符合的項目'
-            : '還沒有收藏。<br>在 Threads、IG、FB 按分享並選「收藏網址」，<br>或點右下角 ＋ 貼上網址。'}</p>`;
+            ? '找不到……(´-ω-｀)'
+            : '這裏還沒有東東。₍ᵔ- -ᵔ₎<br>可以在網頁裏按分享到「留己看」，<br>或者點右下角 ＋ 貼上網址。ᐕ)'}</p>`;
 }
 
 // Main page event handlers
@@ -737,7 +752,7 @@ selectElement('#folder-actions').onclick = event => {
 
     if (
         event.target.id === 'delete-folder-button' &&
-        confirm(`刪除資料夾「${currentFolder.name}」？原有項目將會移到未分類。`)
+        confirm(`刪除資料夾「${currentFolder.name}」？原本的東東會被搬到未分類。`)
     ) {
         appData.items.forEach(item => {
             if (item.folderId === currentFolder.id) item.folderId = '';
@@ -849,7 +864,7 @@ function showDetailPage(itemId) {
             <div class="detail-page">
                 <div class="detail-top-bar">
                     <button id="detail-back-button">‹ 返回</button>
-                    <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">開啟連結</a>
+                    <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">開啟網址</a>
                 </div>
                 <input class="title-field" id="detail-title" placeholder="標題"
                        value="${escapeHtml(item.title)}">
@@ -862,11 +877,11 @@ function showDetailPage(itemId) {
                 </label>
                 <label>
                     備註
-                    <textarea id="detail-note-input" rows="5" placeholder="想記下來的事…">${escapeHtml(item.note)}</textarea>
+                    <textarea id="detail-note-input" rows="5" placeholder="要寫點什麼嗎？">${escapeHtml(item.note)}</textarea>
                 </label>
                 <label>
                     地址
-                    <input id="detail-address-input" placeholder="店名或地址"
+                    <input id="detail-address-input" placeholder="店名 / 地址"
                            value="${escapeHtml(item.address)}">
                 </label>
                 <a class="map-link" id="map-link" target="_blank" rel="noopener">在地圖開啟</a>
@@ -877,7 +892,7 @@ function showDetailPage(itemId) {
                         <input id="detail-image-input" type="file" accept="image/*" multiple hidden>
                     </label>
                 </div>
-                <button class="delete-item-button" id="detail-delete-button">刪除此項目</button>
+                <button class="delete-item-button" id="detail-delete-button">刪除</button>
             </div>
         `;
 
