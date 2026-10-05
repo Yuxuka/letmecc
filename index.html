@@ -692,6 +692,7 @@ const selectElement = selector => document.querySelector(selector);
 let appData = { folders: [], items: [], lastFolderId: '', subTitle: ''};
 let currentFolderId = 'all';
 let searchText = '';
+let localSaveTimer;
 
 // General helpers
 const getFirstLine = text => String(text ?? '').split('\n').find(line => line.trim()) || '';
@@ -714,13 +715,22 @@ const getHostName = url => {
     }
 };
 
+const isValidUrl = url => {
+    try {
+        new URL(url);
+        return true;
+    } catch {
+        return false;
+    }
+};
+
 const getPlatformName = url => {
     const hostName = getHostName(url);
 
-    if (/threads/.test(hostName)) return 'Threads';
-    if (/instagram/.test(hostName)) return 'Instagram';
+    if (hostName === 'threads.net') return 'Threads';
+    if (hostName === 'instagram.com') return 'Instagram';
     if (/facebook|(^|\.)fb\.(com|watch|me)/.test(hostName)) return 'Facebook';
-    if (/youtu/.test(hostName)) return 'YouTube';
+    if (hostName === 'youtube.com' || hostName === 'youtu.be') return 'YouTube';
     if (/(^|\.)x\.com|twitter/.test(hostName)) return 'X';
 
     return hostName;
@@ -752,15 +762,22 @@ const normalizeItem = item => ({
 });
 
 // IndexedDB storage
-const openDatabase = () => new Promise((resolve, reject) => {
-    const openRequest = indexedDB.open('linkbox', 1);
+let databasePromise;
+const openDatabase = () => {
+    if (databasePromise) return databasePromise;
+    databasePromise = new Promise((resolve, reject) => {
+        new Promise((resolve, reject) => {
+            const openRequest = indexedDB.open('linkbox', 1);
 
-    openRequest.onupgradeneeded = () => {
-        openRequest.result.createObjectStore('keyValueStore');
-    };
-    openRequest.onsuccess = () => resolve(openRequest.result);
-    openRequest.onerror = () => reject(openRequest.error);
-});
+            openRequest.onupgradeneeded = () => {
+                openRequest.result.createObjectStore('keyValueStore');
+            };
+            openRequest.onsuccess = () => resolve(openRequest.result);
+            openRequest.onerror = () => reject(openRequest.error);
+        });
+        return databasePromise;
+    });
+}
 
 async function loadData() {
     try {
@@ -776,16 +793,17 @@ async function loadData() {
     } catch (error) { console.error('loadData error'); }
 }
 
+function saveData() {
+    clearTimeout(localSaveTimer);
+    localSaveTimer = setTimeout(async() => {
+        if (cloud.roomId) return scheduleCloudPush();
+        try {
+            const database = await openDatabase();
+            const store = database.transaction('keyValueStore', 'readwrite').objectStore('keyValueStore');
 
-
-async function saveData() {
-    if (cloud.roomId) return scheduleCloudPush();
-    try {
-        const database = await openDatabase();
-        const store = database.transaction('keyValueStore', 'readwrite').objectStore('keyValueStore');
-
-        store.put(appData, 'appData');
-    } catch (error) { console.error('saveData error'); }
+            store.put(appData, 'appData');
+        } catch (error) { console.error('saveData error'); }
+    }, 1000);
 }
 
 // UI helpers
@@ -875,7 +893,7 @@ function renderPage() {
         `).join('')
         : `<p class="empty-message">${appData.items.length
             ? '找不到……(´-ω-｀)'
-            : '這裏還沒有東東。₍ᵔ- -ᵔ₎<br>可以在網頁裏按分享到「留己看」，<br>或者點右下角 ＋ 貼上網址。ᐕ)'}</p>`;
+            : '這裏還沒有東東。₍ᵔ- -ᵔ₎<br>可以在網頁裏按分享到「留己看」，<br>或者點右下角的 ＋ 貼上網址。ᐕ)'}</p>`;
 
     selectElement('#sub-title-text').textContent = appData.subTitle || defaultSubTitle;
     renderSidebar();
@@ -996,6 +1014,9 @@ function showAddSheet(prefill = {}) {
         let url = selectElement('#add-url-input').value.trim();
         if (!url) return showToast('請輸入網址');
         if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+        if (!isValidUrl(url)) {
+            return showToast('網址格式怪怪的……');
+        }
 
         const existingItem = appData.items.find(item => item.url === url);
         if (existingItem) {
