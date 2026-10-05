@@ -58,10 +58,10 @@ h1 {
 
 hr {
     width: 95%;
-    height: 1px;
+    height: 1.5px;
     margin: 5% auto;
     text-align: center;
-    background-color: #9db0d8;
+    background-color: #bdd0d9;
     border: none;
 }
 
@@ -165,7 +165,7 @@ button:focus-visible {
 }
 
 @media (hover: hover) {
-    .button:hover:not(.add-button):not(.on) {
+    .button:hover:not(.add-button):not(.on):not(:active) {
         background: var(--hover-color);
         transform: translateY(-1px);
     }
@@ -204,24 +204,32 @@ button:focus-visible {
 /* Link cards */
 .item-card {
     display: block;
+    position: relative;
     margin-top: 12px;
     padding: 14px 16px;
     background: #fff;
     border: 2px solid #e6eaf7;
     border-radius: 18px;
-    box-shadow: var(--card-shadow);
     cursor: pointer;
     transition: transform .12s, box-shadow .12s;
-}
-
-.item-card:active {
-    transform: translateY(2px);
-    box-shadow: 0 1px 0 #dde3f5;
 }
 
 .item-title {
     font-weight: 700;
     overflow-wrap: anywhere;
+    padding-right: 3.5em;
+}
+
+.item-rename-button {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    border: 2px dashed var(--border-color);
+    border-radius: 999px;
+    background: #fff;
+    padding: 3px 10px;
+    font-size: 12px;
+    color: var(--muted-color);
 }
 
 .item-meta {
@@ -234,15 +242,24 @@ button:focus-visible {
 
 .item-note {
     font-size: 14px;
+    justify-content: center;
+    height: calc(1em + 6px * 2);
     color: var(--text-color);
     background: var(--soft-color);
     border-radius: 12px;
-    padding: 6px 10px;
+    padding: 6px 14px;
     margin-top: 8px;
     display: -webkit-box;
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 1;
     -webkit-box-orient: vertical;
     overflow: hidden;
+}
+
+.item-note.single-line {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .empty-message {
@@ -531,7 +548,7 @@ footer {
 
 /* Menu button */
 #menu-button {
-    position: absolute;
+    position: fixed;
     top: calc(14px + env(safe-area-inset-top));
     left: 14px;
     width: 40px;
@@ -543,9 +560,8 @@ footer {
     align-items: center;
     gap: 5px;
     background: #fff;
-    border: 2px solid var(--line-color);
+    border: 2px outset var(--line-color);
     border-radius: 12px;
-    box-shadow: 0 2px 0 var(--line-color);
 }
 
 #menu-button span {
@@ -583,9 +599,14 @@ footer {
 body.sidebar-open #sidebar { transform: none; }
 body.sidebar-open #sidebar-backdrop { display: block; }
 
-.side-title {
-    margin: 22px 0 8px;
-    font-size: 14px;
+.side-title-h2 {
+    font-size: 1.5em;
+    margin: 0;
+}
+
+.side-title-h3 {
+    margin: 22px 0 12px;
+    font-size: 1em;
     color: var(--muted-color);
 }
 
@@ -608,6 +629,11 @@ body.sidebar-open #sidebar-backdrop { display: block; }
 }
 
 .side-room-button { width: 100%; padding: 8px 12px; }
+
+.delete-room-button {
+    color: #c4455b;
+    border-color: #f1b4bd;
+}
 
 .side-folder {
     width: 100%;
@@ -668,6 +694,7 @@ let currentFolderId = 'all';
 let searchText = '';
 
 // General helpers
+const getFirstLine = text => String(text ?? '').split('\n').find(line => line.trim()) || '';
 const escapeHtml = text => String(text ?? '').replace(/[&<>"']/g, character => ({
     '&': '&amp;',
     '<': '&lt;',
@@ -817,14 +844,15 @@ function renderPage() {
     selectElement('#item-list').innerHTML = visibleItems.length
         ? visibleItems.map(item => `
             <div class="item-card" data-item-id="${item.id}">
+                <button class="item-rename-button" data-rename-item-id="${item.id}">改名</button>
                 <div class="item-title">${escapeHtml(item.title || getHostName(item.url))}</div>
                 <div class="item-meta">
                     ${escapeHtml(getPlatformName(item.url))}
                     ${item.folderId ? ' / ' + escapeHtml(getFolderName(item.folderId)) : ''}
                     ${item.images.length ? ' / 圖片 ' + item.images.length : ''}
                 </div>
-                ${item.note ? `<div class="item-note">${escapeHtml(item.note)}</div>` : ''}
-                ${item.address ? `<div class="item-note">📍 ${escapeHtml(item.address)}</div>` : ''}
+                ${getFirstLine(item.note) ? `<div class="item-note single-line">${escapeHtml(getFirstLine(item.note))}</div>` : ''}
+                ${item.address ? `<div class="item-note">${escapeHtml(item.address)}</div>` : ''}
                 ${item.addedBy ? `<div class="item-by">by ${escapeHtml(item.addedBy)}</div>` : ''}
             </div>
         `).join('')
@@ -889,6 +917,18 @@ selectElement('#folder-actions').onclick = event => {
 };
 
 selectElement('#item-list').onclick = event => {
+    const renameButton = event.target.closest('[data-rename-item-id]');
+    if (renameButton) {
+        const item = appData.items.find(candidate => candidate.id === renameButton.dataset.renameItemId);
+        if (!item) return;
+        const newTitle = prompt('新的標題', item.title || '');
+        if (newTitle !== null) {
+            item.title = newTitle.trim();
+            saveData();
+            renderPage();
+        }
+        return;
+    }
     const clickedCard = event.target.closest('[data-item-id]');
     if (clickedCard) showDetailPage(clickedCard.dataset.itemId);
 };
@@ -1219,9 +1259,8 @@ async function pushChanges() {
     if (!cloud.roomId) return;
     const { db, doc, setDoc, deleteDoc } = await loadFirebase();
     const currentDocs = {};
-    //{ 'settings/main': { subTitle: appData.subTitle || '' } };
-    if (appData.subTitle || 'settings/main' in syncedJson) {
-        currentDocs['settings/main'] = { subTitle: appData.subTitle || '' };
+    if (appData.subTitle || appData.roomTitle || 'settings/main' in syncedJson) {
+        currentDocs['settings/main'] = { subTitle: appData.subTitle || '', roomTitle: appData.roomTitle || '' };
     }
     appData.folders.forEach(folder => { currentDocs['folders/' + folder.id] = folder; });
     appData.items.forEach(item => { currentDocs['items/' + item.id] = item; });
@@ -1292,7 +1331,8 @@ async function enterRoom(roomId, { keepLocalData }) {
         onSnapshot(doc(db, 'rooms', roomId, 'settings', 'main'), snapshot => {
             if (!snapshot.exists() || snapshot.metadata.hasPendingWrites) return;
             appData.subTitle = snapshot.data().subTitle || '';
-            syncedJson['settings/main'] = stableJson({ subTitle: appData.subTitle });
+            appData.roomTitle = snapshot.data().roomTitle || '';
+            syncedJson['settings/main'] = stableJson({ subTitle: appData.subTitle, roomTitle: appData.roomTitle });
             renderPage();
         }),
         onSnapshot(collection(db, 'rooms', roomId, 'members'), snapshot => {
@@ -1324,13 +1364,39 @@ async function leaveRoom() {
     showToast('已登出房間');
 }
 
+async function deleteRoom() {
+    const roomId = cloud.roomId;
+    const roomLabel = appData.roomTitle || roomId;
+    if (!confirm(`刪除房間「${roomLabel}」？( º-º  )\n所有收藏和資料夾會永久消失，所有人都看不到，且無法復原。\n建議先匯出備份。`)) return;
+    const password = prompt('請輸入房間密碼確認刪除');
+    if (!password) return;
+    try {
+        const { auth, db, collection, getDocs, deleteDoc, deleteUser, EmailAuthProvider, reauthenticateWithCredential } = await loadFirebase();
+        const user = auth.currentUser;
+        await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, password));
+        stopRoomListeners();
+        for (const collectionName of ['items', 'folders', 'members', 'settings']) {
+            const snapshot = await getDocs(collection(db, 'rooms', roomId, collectionName));
+            await Promise.all(snapshot.docs.map(documentSnapshot => deleteDoc(documentSnapshot.ref)));
+        }
+        await deleteUser(user);
+        appData = Object.assign({ folders: [], items: [], lastFolderId: '', subTitle: '' }, await loadData());
+        currentFolderId = 'all';
+        setSidebarOpen(false);
+        renderPage();
+        showToast('房間已刪除(  ´ω`)ﾉﾞ');
+    } catch (error) {
+        showToast(authErrorMessages[error.code] || '刪除失敗，請重新開啟 App 再試');
+    }
+}
+
 const authErrorMessages = {
-    'auth/email-already-in-use': '這個房間 ID 已經有人使用了',
-    'auth/invalid-credential': '房間 ID 或密碼不正確',
-    'auth/wrong-password': '房間 ID 或密碼不正確',
-    'auth/user-not-found': '房間 ID 或密碼不正確',
-    'auth/weak-password': '密碼太簡單，請寫至少 6 個字元',
-    'auth/too-many-requests': '嘗試次數太多，請稍後再試'
+    'auth/email-already-in-use': '房間 ID 已經有人在用了( ´ ᐞ ` )',
+    'auth/invalid-credential': '房間 ID 或密碼不正確( ´ ᐞ ` )',
+    'auth/wrong-password': '房間 ID 或密碼不正確( ´ ᐞ ` )',
+    'auth/user-not-found': '房間 ID 或密碼不正確( ´ ᐞ ` )',
+    'auth/weak-password': '密碼請至少設定 6 個字元( ´ ᐞ ` )',
+    'auth/too-many-requests': '嘗試次數太多，請稍後再試( ´ ᐞ ` )'
 };
 
 function showRoomSheet() {
@@ -1356,9 +1422,9 @@ function showRoomSheet() {
 
     const submit = async isCreating => {
         const roomId = selectElement('#room-id-input').value.trim().toLowerCase();
-        if (!/^[a-z0-9_-]{3,20}$/.test(roomId)) return showToast('房間 ID 格式不正確');
+        if (!/^[a-z0-9_-]{3,20}$/.test(roomId)) return showToast('房間 ID 格式錯了');
         const password = selectElement('#room-password-input').value;
-        if (password.length < 6) return showToast('密碼至少 6 個字元');
+        if (password.length < 6) return showToast('密碼需要至少 6 個字元');
         const enteredName = selectElement('#room-name-input').value.trim().slice(0, 20);
         if (!enteredName) return showToast('請告訴我你是誰！');
         localStorage.setItem('displayName', enteredName);
@@ -1375,7 +1441,7 @@ function showRoomSheet() {
             closeSheet();
             await enterRoom(roomId, { keepLocalData: isCreating });  // 建立房間時，會把本機現有收藏一起上傳
             if (isCreating) await pushChanges();
-            showToast(isCreating ? '房間已建立' : '已進入房間');
+            showToast(isCreating ? '房間已建立(*˙꒳˙*)♬｡.' : '已進入房間(*˙꒳˙*)♬｡.');
         } catch (error) {
             showToast(authErrorMessages[error.code] || '發生錯誤，請稍後再試');
         }
@@ -1410,16 +1476,26 @@ function renderSidebar() {
         html += '<button class="side-room-button" id="open-room-button">登入／建立房間</button>';
     }
     if (cloud.roomId) {
-        html += `<div class="side-room"><span>🏠 ${escapeHtml(cloud.roomId)}</span><button id="leave-room-button">登出房間</button></div>`;
-        html += `<div class="side-room"><span>我的名稱：${escapeHtml(getMyName())}</span><button id="rename-me-button">改名</button></div>`;
+        const isOwner = cloud.members.some(member => member.id === myId && member.isOwner);
+        html += `<div class="side-room">
+            <span><h2 class="side-title-h2">🏠 ${escapeHtml(appData.roomTitle || cloud.roomId)}</h2></span>
+            <button id="rename-room-button">改房名</button></div>`;
+        html += `<hr><div class="side-room">
+            <span><b>成員：</b></span></div><br>`;
+        html += `<div class="side-room">
+            <span>${escapeHtml(getMyName())}</span>
+            <button id="rename-me-button">改名</button></div>`;
+        html += `<br><div class="side-room">
+            <button id="leave-room-button">登出房間</button>
+            ${isOwner ? '<button id="delete-room-button">刪除房間</button>' : ''}</div>`;
     }
     if (cloud.roomId && hasGuest) {
-        html += `<h3 class="side-title">在線 ${onlineMembers.length} 人</h3>`;
-        html += onlineMembers.map(member => `<div class="side-member">${escapeHtml(member.name)}${member.isOwner ? '（房主）' : ''}${member.id === myId ? '（你）' : ''}</div>`).join('');
+        html += `<h3 class="side-title-h3">在線 ${onlineMembers.length} 人</h3>`;
+        html += onlineMembers.map(member => `<div class="side-member">${escapeHtml(member.name)}${member.isOwner ? '👑' : ''}${member.id === myId ? '（你）' : ''}</div>`).join('');
     }
 
     const groups = [{ key: 'none', id: '', name: '未分類' }, ...appData.folders.map(folder => ({ key: folder.id, id: folder.id, name: folder.name }))];
-    html += '<h3 class="side-title">大概看一下</h3>';
+    html += '<hr><h3 class="side-title-h3">大概看一下</h3>';
     html += groups.map(group => {
         const groupItems = appData.items.filter(item => (item.folderId || '') === group.id);
         const isOpen = expandedFolderKeys.has(group.key);
@@ -1447,10 +1523,19 @@ selectElement('#sidebar').onclick = async event => {
     } else if (target.id === 'open-room-button') {
         setSidebarOpen(false);
         showRoomSheet();
+    } else if (target.id === 'rename-room-button') {
+        const newTitle = prompt('新的房間名稱', appData.roomTitle || '');
+        if (newTitle !== null) {
+            appData.roomTitle = newTitle.trim().slice(0, 30);
+            saveData();
+            renderSidebar();
+        }
+    } else if (target.id === 'delete-room-button') {
+        await deleteRoom();
     } else if (target.id === 'leave-room-button') {
         await leaveRoom();
     } else if (target.id === 'rename-me-button') {
-        const newName = prompt('你的名稱', getMyName());
+        const newName = prompt('你的新名稱', getMyName());
         if (newName?.trim()) {
             localStorage.setItem('displayName', newName.trim().slice(0, 20));
             sendHeartbeat();
