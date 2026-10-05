@@ -739,6 +739,18 @@ const folderOptionsHtml = selectedFolderId => {
     return '<option value="">未分類</option>' + folderOptions;
 };
 
+const normalizeItem = item => ({
+    id: item.id || makeUniqueId(),
+    url: typeof item.url === 'string' ? item.url : '',
+    title: typeof item.title === 'string' ? item.title : '',
+    note: typeof item.note === 'string' ? item.note : '',
+    address: typeof item.address === 'string' ? item.address : '',
+    images: Array.isArray(item.images) ? item.images : [],
+    folderId: typeof item.folderId === 'string' ? item.folderId : '',
+    addedBy: typeof item.addedBy === 'string' ? item.addedBy : '',
+    createdAt: Number(item.createdAt) || Date.now()
+});
+
 // IndexedDB storage
 const openDatabase = () => new Promise((resolve, reject) => {
     const openRequest = indexedDB.open('linkbox', 1);
@@ -761,7 +773,7 @@ async function loadData() {
             getRequest.onsuccess = () => resolve(getRequest.result);
             getRequest.onerror = () => resolve();
         });
-    } catch (error) {}
+    } catch (error) { console.error('loadData error'); }
 }
 
 
@@ -773,7 +785,7 @@ async function saveData() {
         const store = database.transaction('keyValueStore', 'readwrite').objectStore('keyValueStore');
 
         store.put(appData, 'appData');
-    } catch (error) {}
+    } catch (error) { console.error('saveData error'); }
 }
 
 // UI helpers
@@ -798,6 +810,11 @@ const shrinkImage = file => new Promise(resolve => {
         canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
         URL.revokeObjectURL(objectUrl);
         resolve(canvas.toDataURL('image/jpeg', 0.6));
+    };
+
+    image.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(null);
     };
 
     image.src = objectUrl;
@@ -1096,7 +1113,14 @@ function showDetailPage(itemId) {
         selectElement('#detail-image-input').onchange = async event => {
             for (const file of event.target.files) {
                 if (item.images.length >= 5) { showToast('每個項目最多 5 張圖片'); break; }
-                item.images.push(await shrinkImage(file));
+                const imageData = await shrinkImage(file);
+                if (imageData) {
+                    item.images.push(imageData);
+                };
+                if (!imageData) {
+                    showToast('讀不到圖片～～( ´ ᐞ ` )');
+                    continue;
+                }
             }
             saveData();
             drawDetailPage();
@@ -1156,6 +1180,7 @@ selectElement('#import-file-input').onchange = async event => {
             if (!alreadyExists) appData.folders.push(folder);
         });
         backup.items.forEach(item => {
+            const safeItem = normalizeItem(item);
             const alreadyExists = appData.items.some(existing => existing.id === item.id);
             if (!alreadyExists) appData.items.push(item);
         });
@@ -1270,7 +1295,12 @@ async function pushChanges() {
         const json = stableJson(data);
         if (syncedJson[path] === json) continue;
         syncedJson[path] = json;
-        jobs.push(setDoc(doc(db, 'rooms', cloud.roomId, ...path.split('/')), data));
+        jobs.push(
+            setDoc(doc(db, 'rooms', cloud.roomId, ...path.split('/')), data)
+            .then(() => {
+                syncedJson[path] =json;
+            })
+        );
     }
     for (const path of Object.keys(syncedJson)) {
         if (path in currentDocs) continue;
@@ -1289,7 +1319,7 @@ function applyRemoteChanges(kind, snapshot) {
     const list = kind === 'folders' ? appData.folders : appData.items;
     snapshot.docChanges().forEach(change => {
         if (change.doc.metadata.hasPendingWrites) return;  // 自己剛寫的，略過
-        const data = change.doc.data();
+        const data = normalizeItem(change.doc.data());
         const path = kind + '/' + change.doc.id;
         const index = list.findIndex(entry => entry.id === change.doc.id);
         if (change.type === 'removed') {
@@ -1341,7 +1371,7 @@ async function enterRoom(roomId, { keepLocalData }) {
         })
     ];
     sendHeartbeat();
-    cloud.heartbeatTimer = setInterval(() => { sendHeartbeat(); renderSidebar(); }, 25000);
+    cloud.heartbeatTimer = setInterval(() => { sendHeartbeat(); renderSidebar(); }, 60000);
     renderPage();
 }
 
