@@ -242,21 +242,12 @@ button:focus-visible {
 
 .item-note {
     font-size: 14px;
-    justify-content: center;
-    height: calc(1em + 6px * 2);
+    line-height: 1;
     color: var(--text-color);
     background: var(--soft-color);
     border-radius: 12px;
     padding: 6px 14px;
     margin-top: 8px;
-    display: -webkit-box;
-    -webkit-line-clamp: 1;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.item-note.single-line {
-    display: block;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -630,7 +621,7 @@ body.sidebar-open #sidebar-backdrop { display: block; }
 
 .side-room-button { width: 100%; padding: 8px 12px; }
 
-.delete-room-button {
+.side-room.delete-room-button {
     color: #c4455b;
     border-color: #f1b4bd;
 }
@@ -726,13 +717,11 @@ const isValidUrl = url => {
 
 const getPlatformName = url => {
     const hostName = getHostName(url);
-
-    if (hostName === 'threads.net') return 'Threads';
-    if (hostName === 'instagram.com') return 'Instagram';
-    if (/facebook|(^|\.)fb\.(com|watch|me)/.test(hostName)) return 'Facebook';
-    if (hostName === 'youtube.com' || hostName === 'youtu.be') return 'YouTube';
-    if (/(^|\.)x\.com|twitter/.test(hostName)) return 'X';
-
+    if (/(^|\.)threads\.(net|com)$/.test(hostName)) return 'Threads';
+    if (/(^|\.)instagram\.com$/.test(hostName)) return 'Instagram';
+    if (/(^|\.)(facebook\.com|fb\.com|fb\.watch|fb\.me)$/.test(hostName)) return 'Facebook';
+    if (/(^|\.)(youtube\.com|youtu\.be)$/.test(hostName)) return 'YouTube';
+    if (/(^|\.)(x\.com|twitter\.com)$/.test(hostName)) return 'X';
     return hostName;
 };
 
@@ -761,50 +750,96 @@ const normalizeItem = item => ({
     createdAt: Number(item.createdAt) || Date.now()
 });
 
+const normalizeFolder = folder => ({
+    id: folder.id || makeUniqueId(),
+    name: typeof folder.name === 'string' ? folder.name : ''
+});
+
+function reportError(where, error, message) {
+    console.error(`[${where}]`, error?.name || '', error?.code || '', error?.message || error);
+    if (message) showToast(message);
+}
+window.addEventListener('unhandledrejection', event => reportError('未處理的錯誤', event.reason));
+window.addEventListener('error', event => reportError('程式錯誤', event.error || event.message));
+
 // IndexedDB storage
 let databasePromise;
-const openDatabase = () => {
-    if (databasePromise) return databasePromise;
-    databasePromise = new Promise((resolve, reject) => {
-        new Promise((resolve, reject) => {
-            const openRequest = indexedDB.open('linkbox', 1);
+let isAppDataReady = false;   // 本機資料讀完之前不寫入，避免用空資料蓋掉舊資料
+let localLoadFailed = false;  // 讀取失敗時也不寫入，保護舊資料
 
+const openDatabase = () => {
+    if (!databasePromise) {
+        databasePromise = new Promise((resolve, reject) => {
+            const openRequest = indexedDB.open('linkbox', 2);
             openRequest.onupgradeneeded = () => {
-                openRequest.result.createObjectStore('keyValueStore');
+                const database = openRequest.result;
+                if(!database.objectStoreNames.contains('keyValueStore')) {
+                    database.createObjectStore('keyValueStore');
+                }
+                
             };
-            openRequest.onsuccess = () => resolve(openRequest.result);
+            openRequest.onsuccess = () => {
+                const database = openRequest.result;
+                database.onversionchange = () => { database.close(); databasePromise = undefined; };
+                resolve(database);
+            }
             openRequest.onerror = () => reject(openRequest.error);
+            openRequest.onblocked = () => reject(new Error('資料庫被其他分頁佔用'));
+        }).catch(error => {
+            databasePromise = undefined;   // 失敗後下次可以重試
+            throw error;
         });
-        return databasePromise;
-    });
-}
+    }
+    return databasePromise;
+};
 
 async function loadData() {
     try {
         const database = await openDatabase();
-
-        return await new Promise(resolve => {
-            const store = database.transaction('keyValueStore').objectStore('keyValueStore');
-            const getRequest = store.get('appData');
-
+        const savedData = await new Promise((resolve, reject) => {
+            const getRequest = database.transaction('keyValueStore').objectStore('keyValueStore').get('appData');
             getRequest.onsuccess = () => resolve(getRequest.result);
-            getRequest.onerror = () => resolve();
+            getRequest.onerror = () => reject(getRequest.error);
         });
-    } catch (error) { console.error('loadData error'); }
+        localLoadFailed = false;
+        return savedData;
+    } catch (error) {
+        localLoadFailed = true;
+        reportError('loadData 讀取本機資料', error, '讀取本機資料失敗，本機變更暫時不會儲存');
+    }
+}
+
+async function writeLocalData() {
+    if (!isAppDataReady || localLoadFailed) return;
+    try {
+        const database = await openDatabase();
+        await new Promise((resolve, reject) => {
+            const transaction = database.transaction('keyValueStore', 'readwrite');
+            transaction.objectStore('keyValueStore').put(appData, 'appData');
+            transaction.oncomplete = resolve;
+            transaction.onerror = () => reject(transaction.error);
+            transaction.onabort = () => reject(transaction.error);
+        });
+    } catch (error) {
+        reportError('writeLocalData 儲存本機資料', error, '儲存失敗，這次的變更可能沒有存下來');
+    }
 }
 
 function saveData() {
     clearTimeout(localSaveTimer);
-    localSaveTimer = setTimeout(async() => {
-        if (cloud.roomId) return scheduleCloudPush();
-        try {
-            const database = await openDatabase();
-            const store = database.transaction('keyValueStore', 'readwrite').objectStore('keyValueStore');
-
-            store.put(appData, 'appData');
-        } catch (error) { console.error('saveData error'); }
-    }, 1000);
+    localSaveTimer = setTimeout(flushSave, 600);
 }
+
+function flushSave() {
+    clearTimeout(localSaveTimer);
+    if (!isAppDataReady) return;
+    if (cloud.roomId) pushChanges();
+    else writeLocalData();
+}
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushSave();
+});
+addEventListener('pagehide', flushSave);
 
 // UI helpers
 function showToast(message) {
@@ -886,7 +921,7 @@ function renderPage() {
                     ${item.folderId ? ' / ' + escapeHtml(getFolderName(item.folderId)) : ''}
                     ${item.images.length ? ' / 圖片 ' + item.images.length : ''}
                 </div>
-                ${getFirstLine(item.note) ? `<div class="item-note single-line">${escapeHtml(getFirstLine(item.note))}</div>` : ''}
+                ${getFirstLine(item.note) ? `<div class="item-note">${escapeHtml(getFirstLine(item.note))}</div>` : ''}
                 ${item.address ? `<div class="item-note">${escapeHtml(item.address)}</div>` : ''}
                 ${item.addedBy ? `<div class="item-by">by ${escapeHtml(item.addedBy)}</div>` : ''}
             </div>
@@ -1196,14 +1231,13 @@ selectElement('#import-file-input').onchange = async event => {
     try {
         const backup = JSON.parse(await event.target.files[0].text());
 
-        backup.folders.forEach(folder => {
-            const alreadyExists = appData.folders.some(existing => existing.id === folder.id);
-            if (!alreadyExists) appData.folders.push(folder);
+        (backup.folders || []).forEach(folder => {
+            const safeFolder = normalizeFolder(folder);
+            if (!appData.folders.some(existing => existing.id === safeFolder.id)) appData.folders.push(safeFolder);
         });
-        backup.items.forEach(item => {
+        (backup.items || []).forEach(item => {
             const safeItem = normalizeItem(item);
-            const alreadyExists = appData.items.some(existing => existing.id === item.id);
-            if (!alreadyExists) appData.items.push(item);
+            if (!appData.items.some(existing => existing.id === safeItem.id)) appData.items.push(safeItem);
         });
 
         appData.items.sort((first, second) => second.createdAt - first.createdAt);
@@ -1254,7 +1288,6 @@ const isCloudConfigured = Boolean(firebaseConfig.apiKey);
 const cloud = { roomId: '', members: [], unsubscribers: [], heartbeatTimer: null };
 const expandedFolderKeys = new Set();
 let syncedJson = {};
-let pushTimer;
 let firebaseTools;
 
 const stableJson = data => JSON.stringify(data, Object.keys(data).sort());
@@ -1296,12 +1329,8 @@ async function loadFirebase() {
 }
 
 // ---- 同步：本機改動 → 雲端（有延遲，避免每打一個字就寫一次）----
-function scheduleCloudPush() {
-    clearTimeout(pushTimer);
-    pushTimer = setTimeout(pushChanges, 600);
-}
-
 async function pushChanges() {
+    const roomId = cloud.roomId;
     if (!cloud.roomId) return;
     const { db, doc, setDoc, deleteDoc } = await loadFirebase();
     const currentDocs = {};
@@ -1315,23 +1344,20 @@ async function pushChanges() {
     for (const [path, data] of Object.entries(currentDocs)) {
         const json = stableJson(data);
         if (syncedJson[path] === json) continue;
-        syncedJson[path] = json;
         jobs.push(
-            setDoc(doc(db, 'rooms', cloud.roomId, ...path.split('/')), data)
-            .then(() => {
-                syncedJson[path] =json;
-            })
+            setDoc(doc(db, 'rooms', roomId, ...path.split('/')), data)
+                .then(() => { syncedJson[path] = json; })   // 成功後才記錄，失敗下次會重試
         );
     }
     for (const path of Object.keys(syncedJson)) {
         if (path in currentDocs) continue;
         delete syncedJson[path];
-        jobs.push(deleteDoc(doc(db, 'rooms', cloud.roomId, ...path.split('/'))));
+        jobs.push(deleteDoc(doc(db, 'rooms', roomId, ...path.split('/'))));
     }
     try {
         await Promise.all(jobs);
     } catch (error) {
-        showToast('同步失敗，請稍後再試');
+        reportError('pushChanges 同步到雲端', error, '同步失敗：' + (error.code || '請稍後再試'));
     }
 }
 
@@ -1340,7 +1366,9 @@ function applyRemoteChanges(kind, snapshot) {
     const list = kind === 'folders' ? appData.folders : appData.items;
     snapshot.docChanges().forEach(change => {
         if (change.doc.metadata.hasPendingWrites) return;  // 自己剛寫的，略過
-        const data = normalizeItem(change.doc.data());
+    
+        const rawData = { ...change.doc.data(), id: change.doc.id };
+        const data = kind === 'folders' ? normalizeFolder(rawData) : normalizeItem(rawData);
         const path = kind + '/' + change.doc.id;
         const index = list.findIndex(entry => entry.id === change.doc.id);
         if (change.type === 'removed') {
@@ -1364,12 +1392,13 @@ async function sendHeartbeat() {
         doc(db, 'rooms', cloud.roomId, 'members', getMemberId()),
         { name: getMyName(), lastSeen: serverTimestamp() },
         { merge: true }
-    ).catch(() => {});
+    ).catch(error => reportError('sendHeartbeat', error));
 }
 document.addEventListener('visibilitychange', sendHeartbeat);
 
 async function enterRoom(roomId, { keepLocalData }) {
     const { db, collection, doc, onSnapshot } = await loadFirebase();
+    const onListenError = error => reportError('即時同步', error, '雲端同步中斷：' + (error.code || ''));
     stopRoomListeners();
     cloud.roomId = roomId;
     syncedJson = {};
@@ -1377,19 +1406,19 @@ async function enterRoom(roomId, { keepLocalData }) {
     currentFolderId = 'all';
 
     cloud.unsubscribers = [
-        onSnapshot(collection(db, 'rooms', roomId, 'folders'), snapshot => applyRemoteChanges('folders', snapshot)),
-        onSnapshot(collection(db, 'rooms', roomId, 'items'), snapshot => applyRemoteChanges('items', snapshot)),
+        onSnapshot(collection(db, 'rooms', roomId, 'folders'), snapshot => applyRemoteChanges('folders', snapshot), onListenError),
+        onSnapshot(collection(db, 'rooms', roomId, 'items'), snapshot => applyRemoteChanges('items', snapshot), onListenError),
         onSnapshot(doc(db, 'rooms', roomId, 'settings', 'main'), snapshot => {
             if (!snapshot.exists() || snapshot.metadata.hasPendingWrites) return;
             appData.subTitle = snapshot.data().subTitle || '';
             appData.roomTitle = snapshot.data().roomTitle || '';
             syncedJson['settings/main'] = stableJson({ subTitle: appData.subTitle, roomTitle: appData.roomTitle });
             renderPage();
-        }),
+        }, onListenError),
         onSnapshot(collection(db, 'rooms', roomId, 'members'), snapshot => {
             cloud.members = snapshot.docs.map(member => ({ id: member.id, ...member.data() }));
             renderSidebar();
-        })
+        }, onListenError)
     ];
     sendHeartbeat();
     cloud.heartbeatTimer = setInterval(() => { sendHeartbeat(); renderSidebar(); }, 60000);
@@ -1405,6 +1434,7 @@ function stopRoomListeners() {
 
 async function leaveRoom() {
     if (!confirm('登出這個房間？房間裡的資料會保留在雲端。')) return;
+    await pushChanges();
     const { auth, signOut } = await loadFirebase();
     stopRoomListeners();
     await signOut(auth);
@@ -1510,7 +1540,7 @@ async function startCloud() {
         if (user?.email?.endsWith(ROOM_EMAIL_DOMAIN)) {
             await enterRoom(user.email.replace(ROOM_EMAIL_DOMAIN, ''), { keepLocalData: false });
         }
-    } catch (error) {}
+    } catch (error) { reportError('startCloud 連線 Firebase', error, '連不上雲端，目前使用本機資料'); }
 }
 
 // ---- 左側欄 ----
@@ -1518,7 +1548,7 @@ const setSidebarOpen = isOpen => document.body.classList.toggle('sidebar-open', 
 
 function renderSidebar() {
     const onlineMembers = cloud.members.filter(member =>
-        !member.lastSeen || Date.now() - member.lastSeen.toMillis() < 70000);
+        !member.lastSeen || Date.now() - member.lastSeen.toMillis() < 150000);
     const hasGuest = onlineMembers.some(member => !member.isOwner);
     const myId = getMemberId();
     let html = '';
@@ -1538,7 +1568,7 @@ function renderSidebar() {
             <button id="rename-me-button">改名</button></div>`;
         html += `<br><div class="side-room">
             <button id="leave-room-button">登出房間</button>
-            ${isOwner ? '<button id="delete-room-button">刪除房間</button>' : ''}</div>`;
+            ${isOwner ? '<button id="delete-room-button" class="delete-room-button">刪除房間</button>' : ''}</div>`;
     }
     if (cloud.roomId && hasGuest) {
         html += `<h3 class="side-title-h3">在線 ${onlineMembers.length} 人</h3>`;
@@ -1599,7 +1629,7 @@ selectElement('#sidebar').onclick = async event => {
 (async function startApp() {
     const savedData = await loadData();
     if (savedData) appData = Object.assign(appData, savedData);
-
+    isAppDataReady = true;
     renderPage();
     
     await startCloud();
