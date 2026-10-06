@@ -750,13 +750,18 @@ const folderOptionsHtml = (selectedFolderId, folders = appData.folders) => {
     return '<option value="">未分類</option>' + folderOptions;
 };
 
+const isSafeId = value => typeof value === 'string' && /^[\w-]{1,64}$/.test(value);
+const isSafeImage = source => typeof source === 'string'
+    && /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(source);
+const getSafeHref = url => /^https?:\/\//i.test(url) ? url : '#';
+
 const normalizeItem = item => ({
     id: item.id || makeUniqueId(),
     url: typeof item.url === 'string' ? item.url : '',
     title: typeof item.title === 'string' ? item.title : '',
     note: typeof item.note === 'string' ? item.note : '',
     address: typeof item.address === 'string' ? item.address : '',
-    images: Array.isArray(item.images) ? item.images : [],
+    images: (Array.isArray(item.images) ? item.images : []).filter(isSafeImage),
     folderId: typeof item.folderId === 'string' ? item.folderId : '',
     addedBy: typeof item.addedBy === 'string' ? item.addedBy : '',
     createdAt: Number(item.createdAt) || Date.now()
@@ -765,6 +770,13 @@ const normalizeItem = item => ({
 const normalizeFolder = folder => ({
     id: folder.id || makeUniqueId(),
     name: typeof folder.name === 'string' ? folder.name : ''
+});
+
+const normalizeAppData = rawData => ({
+    folders: (Array.isArray(rawData?.folders) ? rawData.folders : []).filter(folder => isSafeId(folder?.id)).map(normalizeFolder),
+    items: (Array.isArray(rawData?.items) ? rawData.items : []).filter(item => isSafeId(item?.id)).map(normalizeItem),
+    lastFolderId: typeof rawData?.lastFolderId === 'string' ? rawData.lastFolderId : '',
+    subTitle: typeof rawData?.subTitle === 'string' ? rawData.subTitle : ''
 });
 
 function reportError(where, error, message) {
@@ -866,6 +878,7 @@ function showToast(message) {
 }
 
 const shrinkImage = file => new Promise(resolve => {
+    const maxImageCharacters = 800000;
     const image = new Image();
     const objectUrl = URL.createObjectURL(file);
 
@@ -1132,7 +1145,7 @@ function showDetailPage(itemId) {
             <div class="detail-page">
                 <div class="detail-top-bar">
                     <button id="detail-back-button">‹ 返回</button>
-                    <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">開啟網址</a>
+                    <a href="${escapeHtml(getSafeHref(item.url))}" target="_blank" rel="noopener">開啟網址</a>
                 </div>
                 <input class="title-field" id="detail-title" placeholder="標題"
                        value="${escapeHtml(item.title)}">
@@ -1219,13 +1232,13 @@ function showDetailPage(itemId) {
             for (const file of event.target.files) {
                 if (item.images.length >= 5) { showToast('每個項目最多 5 張圖片'); break; }
                 const imageData = await shrinkImage(file);
-                if (imageData) {
-                    item.images.push(imageData);
-                };
-                if (!imageData) {
-                    showToast('讀不到圖片～～( ´ ᐞ ` )');
+                if (!imageData) { showToast('讀不到圖片～～( ´ ᐞ ` )'); continue; }
+                const currentSize = item.images.reduce((total, source) => total + source.length, 0);
+                if (currentSize + imageData.length > maxImageCharacters) {
+                    showToast('這個項目的圖片太大了，請先刪掉幾張');
                     continue;
                 }
+                item.images.push(imageData);
             }
             saveData();
             drawDetailPage();
@@ -1278,15 +1291,12 @@ selectElement('#import-backup-button').onclick = () => {
 
 selectElement('#import-file-input').onchange = async event => {
     try {
-        const backup = JSON.parse(await event.target.files[0].text());
-
-        (backup.folders || []).forEach(folder => {
-            const safeFolder = normalizeFolder(folder);
-            if (!appData.folders.some(existing => existing.id === safeFolder.id)) appData.folders.push(safeFolder);
+        const importedData = normalizeAppData(backup);
+        importedData.folders.forEach(folder => {
+            if (!appData.folders.some(existing => existing.id === folder.id)) appData.folders.push(folder);
         });
-        (backup.items || []).forEach(item => {
-            const safeItem = normalizeItem(item);
-            if (!appData.items.some(existing => existing.id === safeItem.id)) appData.items.push(safeItem);
+        importedData.items.forEach(item => {
+            if (!appData.items.some(existing => existing.id === item.id)) appData.items.push(item);
         });
 
         appData.items.sort((first, second) => second.createdAt - first.createdAt);
@@ -1294,8 +1304,8 @@ selectElement('#import-file-input').onchange = async event => {
         saveData();
         renderPage();
         showToast('已匯入');
-    } catch {
-        showToast('檔案格式不正確');
+    } catch (error) {
+        reportError('匯入備份', error, '匯入失敗：檔案格式不正確');
     }
 };
 
@@ -1403,8 +1413,10 @@ async function pushChanges() {
     }
     for (const path of Object.keys(syncedJson)) {
         if (path in currentDocs) continue;
-        delete syncedJson[path];
-        jobs.push(deleteDoc(doc(db, 'rooms', roomId, ...path.split('/'))));
+        jobs.push(
+            deleteDoc(doc(db, 'rooms', roomId, ...path.split('/')))
+            .then(() => { delete syncedJson[path]; })
+        );
     }
     try {
         await Promise.all(jobs);
@@ -1418,6 +1430,7 @@ function applyRemoteChanges(kind, snapshot) {
     const list = kind === 'folders' ? appData.folders : appData.items;
     snapshot.docChanges().forEach(change => {
         if (change.doc.metadata.hasPendingWrites) return;  // 自己剛寫的，略過
+        if (!isSafeId(change.doc.id)) return;
     
         const rawData = { ...change.doc.data(), id: change.doc.id };
         const data = kind === 'folders' ? normalizeFolder(rawData) : normalizeItem(rawData);
@@ -1500,7 +1513,7 @@ async function leaveRoom() {
     Object.assign(cloud, { sessionRoomId: '', roomTitle: '' });
     activeWorkspace = 'local';
     localStorage.setItem('activeWorkspace', 'local');
-    if (wasViewingRoom) appData = Object.assign(emptyAppData(), await loadData());
+    if (wasViewingRoom) appData = normalizeAppData(await loadData());
     currentFolderId = 'all';
     setSidebarOpen(false);
     renderPage();
@@ -1526,7 +1539,7 @@ async function deleteRoom() {
         Object.assign(cloud, { sessionRoomId: '', roomTitle: '' });
         activeWorkspace = 'local';
         localStorage.setItem('activeWorkspace', 'local');
-        appData = Object.assign(emptyAppData(), await loadData());
+        appData = normalizeAppData(await loadData());
         currentFolderId = 'all';
         setSidebarOpen(false);        renderPage();
         showToast('房間已刪除(  ´ω`)ﾉﾞ');
@@ -1593,7 +1606,7 @@ function showRoomSheet() {
             if (includeLocalData) await pushChanges();
             showToast(isCreating ? '房間已建立(*˙꒳˙*)♬｡.' : '已進入房間(*˙꒳˙*)♬｡.');
         } catch (error) {
-            reporterror('進入房間', error, authErrorMessages[error.code] || '發生錯誤：' + (error.code || error.message));
+            reportError('進入房間', error, authErrorMessages[error.code] || '發生錯誤：' + (error.code || error.message));
         }
     };
     selectElement('#room-create-button').onclick = () => submit(true);
@@ -1634,7 +1647,7 @@ async function switchWorkspace(workspace) {
         const localData = await loadData();
         if (localLoadFailed) return;   // 讀不到本地資料就不切換
         stopRoomListeners();
-        appData = Object.assign(emptyAppData(), localData);
+        appData = normalizeAppData(localData);
         activeWorkspace = 'local';
         localStorage.setItem('activeWorkspace', 'local');
         currentFolderId = 'all';
@@ -1666,7 +1679,7 @@ async function addItemToWorkspace(newItem, workspace) {
         appData.lastFolderId = newItem.folderId;
         saveData();
     } else if (workspace === 'local') {
-        const localData = Object.assign(emptyAppData(), await loadData());
+        const localData = normalizeAppData(await loadData());
         if (localLoadFailed) throw new Error('本地資料讀取失敗');
         localData.items.unshift(newItem);
         localData.lastFolderId = newItem.folderId;
@@ -1681,6 +1694,9 @@ async function copyItemToOtherWorkspace(item, targetWorkspace) {
     const targetFolders = await loadFoldersOf(targetWorkspace);
     const folderName = getFolderName(item.folderId);
     const matchedFolder = folderName && targetFolders.find(folder => folder.name === folderName);
+    if (targetWorkspace === 'room' && item.images.reduce((total, source) => total + source.length, 0) > maxImageCharacters) {
+        throw new Error('圖片太大，無法複製到房間');
+    }
     await addItemToWorkspace({
         ...item,
         images: [...item.images],
@@ -1788,7 +1804,7 @@ selectElement('#sidebar').onclick = async event => {
 // App startup and shared-link handling
 (async function startApp() {
     const savedData = await loadData();
-    if (savedData) appData = Object.assign(appData, savedData);
+    appData = normalizeAppData(savedData);
     isAppDataReady = true;
     renderPage();
     
@@ -1814,7 +1830,7 @@ selectElement('#sidebar').onclick = async event => {
     }
 
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js').catch(() => {});
+        navigator.serviceWorker.register('sw.js').catch(error => reportError('serviceWorker', error));
     }
 })();
 
