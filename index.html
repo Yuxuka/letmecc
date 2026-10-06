@@ -621,7 +621,7 @@ body.sidebar-open #sidebar-backdrop { display: block; }
 
 .side-room-button { width: 100%; padding: 8px 12px; }
 
-.side-room.delete-room-button {
+.side-room .delete-room-button {
     color: #c4455b;
     border-color: #f1b4bd;
 }
@@ -1383,7 +1383,7 @@ async function loadFirebase() {
 // ---- 同步：本機改動 → 雲端（有延遲，避免每打一個字就寫一次）----
 async function pushChanges() {
     const roomId = cloud.roomId;
-    if (!cloud.roomId) return;
+    if (!roomId) return;
     const { db, doc, setDoc, deleteDoc } = await loadFirebase();
     const currentDocs = {};
     if (appData.subTitle || appData.roomTitle || 'settings/main' in syncedJson) {
@@ -1449,6 +1449,7 @@ async function sendHeartbeat() {
 document.addEventListener('visibilitychange', sendHeartbeat);
 
 async function enterRoom(roomId, { keepLocalData }) {
+    const onListenError = error => reportError('即時同步', error, '雲端同步中斷：' + (error.code || ''));
     const { db, collection, doc, onSnapshot } = await loadFirebase();
     stopRoomListeners();
     cloud.roomId = roomId;
@@ -1592,7 +1593,7 @@ function showRoomSheet() {
             if (includeLocalData) await pushChanges();
             showToast(isCreating ? '房間已建立(*˙꒳˙*)♬｡.' : '已進入房間(*˙꒳˙*)♬｡.');
         } catch (error) {
-            showToast(authErrorMessages[error.code] || '發生錯誤，請稍後再試');
+            reporterror('進入房間', error, authErrorMessages[error.code] || '發生錯誤：' + (error.code || error.message));
         }
     };
     selectElement('#room-create-button').onclick = () => submit(true);
@@ -1763,10 +1764,10 @@ selectElement('#sidebar').onclick = async event => {
         showRoomSheet();
     } else if (target.id === 'rename-room-button') {
         const newTitle = prompt('新的房間名稱', appData.roomTitle || '');
-            cloud.roomTitle = appData.roomTitle;
-            localStorage.setItem('roomTitle:' + cloud.roomId, appData.roomTitle);
         if (newTitle !== null) {
             appData.roomTitle = newTitle.trim().slice(0, 30);
+            cloud.roomTitle = appData.roomTitle;
+            localStorage.setItem('roomTitle:' + cloud.roomId, appData.roomTitle);
             saveData();
             renderSidebar();
         }
