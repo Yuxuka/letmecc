@@ -650,8 +650,20 @@ body.sidebar-open #sidebar-backdrop { display: block; }
 .side-item { cursor: pointer; }
 .side-empty { color: var(--muted-color); }
 
-</style>
+.workspace-tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+.workspace-tabs .button { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
+.copy-item-button {
+    margin-top: 28px;
+    margin-right: 10px;
+    background: #fff;
+    border: 2px dashed var(--border-color);
+    border-radius: 999px;
+    color: var(--link-color);
+    padding: 8px 18px;
+}
+
+</style>
 
 </head>
 
@@ -728,8 +740,8 @@ const getPlatformName = url => {
 const getFolderName = folderId =>
     appData.folders.find(folder => folder.id === folderId)?.name || '';
 
-const folderOptionsHtml = selectedFolderId => {
-    const folderOptions = appData.folders.map(folder => `
+const folderOptionsHtml = (selectedFolderId, folders = appData.folders) => {
+    const folderOptions = folders.map(folder => `
         <option value="${folder.id}"${folder.id === selectedFolderId ? ' selected' : ''}>
             ${escapeHtml(folder.name)}
         </option>
@@ -809,19 +821,21 @@ async function loadData() {
     }
 }
 
-async function writeLocalData() {
-    if (!isAppDataReady || localLoadFailed) return;
+async function writeLocalData(dataToWrite = appData) {
+    if (!isAppDataReady || localLoadFailed) return false;
     try {
         const database = await openDatabase();
         await new Promise((resolve, reject) => {
             const transaction = database.transaction('keyValueStore', 'readwrite');
-            transaction.objectStore('keyValueStore').put(appData, 'appData');
+            transaction.objectStore('keyValueStore').put(dataToWrite, 'appData');
             transaction.oncomplete = resolve;
             transaction.onerror = () => reject(transaction.error);
             transaction.onabort = () => reject(transaction.error);
         });
+        return true;
     } catch (error) {
         reportError('writeLocalData 儲存本機資料', error, '儲存失敗，這次的變更可能沒有存下來');
+        return false;
     }
 }
 
@@ -1019,6 +1033,7 @@ selectElement('#add-link-button').onclick = () => {
 // Add-link sheet
 function showAddSheet(prefill = {}) {
     const overlayContainer = selectElement('#overlay-container');
+    const hasOtherWorkspace = Boolean(cloud.sessionRoomId);
 
     overlayContainer.innerHTML = `
         <div class="backdrop"></div>
@@ -1028,6 +1043,10 @@ function showAddSheet(prefill = {}) {
                    value="${escapeHtml(prefill.url || '')}">
             <input id="add-title-input" placeholder="標題（選填）"
                    value="${escapeHtml(prefill.title || '')}">
+            ${hasOtherWorkspace ? `<select id="add-workspace-select">
+                <option value="local"${activeWorkspace === 'local' ? ' selected' : ''}>存到：本地</option>
+                <option value="room"${activeWorkspace === 'room' ? ' selected' : ''}>存到：${escapeHtml(getRoomLabel())}（房間）</option>
+            </select>` : ''}
             <select id="add-folder-select">
                 ${folderOptionsHtml(prefill.folderId ?? appData.lastFolderId)}
             </select>
@@ -1038,47 +1057,59 @@ function showAddSheet(prefill = {}) {
         </div>
     `;
 
-    const closeSheet = () => {
-        overlayContainer.innerHTML = '';
-    };
+    const closeSheet = () => { overlayContainer.innerHTML = ''; };
+    const getTargetWorkspace = () => hasOtherWorkspace ? selectElement('#add-workspace-select').value : activeWorkspace;
 
     overlayContainer.querySelector('.backdrop').onclick = closeSheet;
     selectElement('#add-cancel-button').onclick = closeSheet;
 
-    selectElement('#add-save-button').onclick = () => {
+    if (hasOtherWorkspace) {
+        selectElement('#add-workspace-select').onchange = async () => {
+            let folders = [];
+            try {
+                folders = await loadFoldersOf(getTargetWorkspace());
+            } catch (error) {
+                reportError('讀取資料夾', error, '讀不到那邊的資料夾，只能存到未分類');
+            }
+            selectElement('#add-folder-select').innerHTML = folderOptionsHtml('', folders);
+        };
+    }
+
+    selectElement('#add-save-button').onclick = async () => {
         let url = selectElement('#add-url-input').value.trim();
         if (!url) return showToast('請輸入網址');
         if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
-        if (!isValidUrl(url)) {
-            return showToast('網址格式怪怪的……');
+        if (!isValidUrl(url)) return showToast('網址格式怪怪的……');
+
+        const targetWorkspace = getTargetWorkspace();
+        try {
+            if (targetWorkspace === activeWorkspace) {
+                const existingItem = appData.items.find(item => item.url === url);
+                if (existingItem) {
+                    closeSheet();
+                    showToast('已經收藏過了！(｀・ω・´)');
+                    return showDetailPage(existingItem.id);
+                }
+            } else if (await workspaceHasUrl(targetWorkspace, url)) {
+                return showToast('另一邊已經收藏過了！');
+            }
+            await addItemToWorkspace({
+                id: makeUniqueId(),
+                url,
+                title: selectElement('#add-title-input').value.trim(),
+                note: '',
+                address: '',
+                images: [],
+                folderId: selectElement('#add-folder-select').value,
+                addedBy: targetWorkspace === 'room' ? getMyName() : '',
+                createdAt: Date.now()
+            }, targetWorkspace);
+        } catch (error) {
+            return reportError('新增收藏', error, '儲存失敗：' + (error.code || error.message || ''));
         }
-
-        const existingItem = appData.items.find(item => item.url === url);
-        if (existingItem) {
-            closeSheet();
-            showToast('已經收藏過了！(｀・ω・´)');
-            return showDetailPage(existingItem.id);
-        }
-
-        const folderId = selectElement('#add-folder-select').value;
-        const newItem = {
-            id: makeUniqueId(),
-            url,
-            title: selectElement('#add-title-input').value.trim(),
-            note: '',
-            address: '',
-            images: [],
-            folderId,
-            addedBy: cloud.roomId ? getMyName() : '',
-            createdAt: Date.now()
-        };
-
-        appData.items.unshift(newItem);
-        appData.lastFolderId = folderId;
-        saveData();
         closeSheet();
         renderPage();
-        showToast('已儲存( ˘ω˘ )');
+        showToast(targetWorkspace === activeWorkspace ? '已儲存( ˘ω˘ )' : `已存到${targetWorkspace === 'room' ? '房間' : '本地'}( ˘ω˘ )`);
     };
 }
 
@@ -1129,6 +1160,7 @@ function showDetailPage(itemId) {
                         <input id="detail-image-input" type="file" accept="image/*" multiple hidden>
                     </label>
                 </div>
+                    ${cloud.sessionRoomId ? `<button class="copy-item-button" id="detail-copy-button">複製到${activeWorkspace === 'local' ? '房間「' + escapeHtml(getRoomLabel()) + '」' : '本地'}</button>` : ''}
                 <button class="delete-item-button" id="detail-delete-button">刪除</button>
             </div>
         `;
@@ -1147,6 +1179,23 @@ function showDetailPage(itemId) {
         };
 
         updateMapLink();
+
+        const copyButton = selectElement('#detail-copy-button');
+        if (copyButton) copyButton.onclick = async () => {
+            copyButton.disabled = true;
+            const targetWorkspace = activeWorkspace === 'local' ? 'room' : 'local';
+            try {
+                if (await workspaceHasUrl(targetWorkspace, item.url)) {
+                    showToast('另一邊已經有這個網址了');
+                } else {
+                    await copyItemToOtherWorkspace(item, targetWorkspace);
+                    showToast('已經複製過去了(*˙꒳˙*)');
+                }
+            } catch (error) {
+                reportError('複製收藏', error, '複製失敗：' + (error.code || error.message || ''));
+            }
+            copyButton.disabled = false;
+        };
 
         selectElement('#detail-back-button').onclick = () => {
             overlayContainer.innerHTML = '';
@@ -1285,7 +1334,10 @@ const FIREBASE_VERSION = '12.19.0'; // 若載入失敗，改成 Firebase 控制�
 const ROOM_EMAIL_DOMAIN = '@letmecc.app'; // 必須和安全規則裡的一致
 const isCloudConfigured = Boolean(firebaseConfig.apiKey);
 
-const cloud = { roomId: '', members: [], unsubscribers: [], heartbeatTimer: null };
+const cloud = { roomId: '', sessionRoomId: '', roomTitle: '', members: [], unsubscribers: [], heartbeatTimer: null };
+let activeWorkspace = 'local';   // 目前畫面顯示的是 'local'（本地）還是 'room'（房間）
+const emptyAppData = () => ({ folders: [], items: [], lastFolderId: '', subTitle: '' });
+const getRoomLabel = () => cloud.roomTitle || cloud.sessionRoomId;
 const expandedFolderKeys = new Set();
 let syncedJson = {};
 let firebaseTools;
@@ -1398,11 +1450,14 @@ document.addEventListener('visibilitychange', sendHeartbeat);
 
 async function enterRoom(roomId, { keepLocalData }) {
     const { db, collection, doc, onSnapshot } = await loadFirebase();
-    const onListenError = error => reportError('即時同步', error, '雲端同步中斷：' + (error.code || ''));
     stopRoomListeners();
     cloud.roomId = roomId;
+    cloud.sessionRoomId = roomId;
+    cloud.roomTitle = localStorage.getItem('roomTitle:' + roomId) || '';
+    activeWorkspace = 'room';
+    localStorage.setItem('activeWorkspace', 'room');
     syncedJson = {};
-    if (!keepLocalData) appData = { folders: [], items: [], lastFolderId: '', subTitle: '' };
+    if (!keepLocalData) appData = emptyAppData();
     currentFolderId = 'all';
 
     cloud.unsubscribers = [
@@ -1412,6 +1467,8 @@ async function enterRoom(roomId, { keepLocalData }) {
             if (!snapshot.exists() || snapshot.metadata.hasPendingWrites) return;
             appData.subTitle = snapshot.data().subTitle || '';
             appData.roomTitle = snapshot.data().roomTitle || '';
+            cloud.roomTitle = appData.roomTitle;
+            localStorage.setItem('roomTitle:' + roomId, appData.roomTitle);
             syncedJson['settings/main'] = stableJson({ subTitle: appData.subTitle, roomTitle: appData.roomTitle });
             renderPage();
         }, onListenError),
@@ -1434,11 +1491,15 @@ function stopRoomListeners() {
 
 async function leaveRoom() {
     if (!confirm('登出這個房間？房間裡的資料會保留在雲端。')) return;
-    await pushChanges();
+    await saveCurrentWorkspaceNow();
     const { auth, signOut } = await loadFirebase();
+    const wasViewingRoom = activeWorkspace === 'room';
     stopRoomListeners();
     await signOut(auth);
-    appData = Object.assign({ folders: [], items: [], lastFolderId: '', subTitle: '' }, await loadData());
+    Object.assign(cloud, { sessionRoomId: '', roomTitle: '' });
+    activeWorkspace = 'local';
+    localStorage.setItem('activeWorkspace', 'local');
+    if (wasViewingRoom) appData = Object.assign(emptyAppData(), await loadData());
     currentFolderId = 'all';
     setSidebarOpen(false);
     renderPage();
@@ -1461,10 +1522,12 @@ async function deleteRoom() {
             await Promise.all(snapshot.docs.map(documentSnapshot => deleteDoc(documentSnapshot.ref)));
         }
         await deleteUser(user);
-        appData = Object.assign({ folders: [], items: [], lastFolderId: '', subTitle: '' }, await loadData());
+        Object.assign(cloud, { sessionRoomId: '', roomTitle: '' });
+        activeWorkspace = 'local';
+        localStorage.setItem('activeWorkspace', 'local');
+        appData = Object.assign(emptyAppData(), await loadData());
         currentFolderId = 'all';
-        setSidebarOpen(false);
-        renderPage();
+        setSidebarOpen(false);        renderPage();
         showToast('房間已刪除(  ´ω`)ﾉﾞ');
     } catch (error) {
         showToast(authErrorMessages[error.code] || '刪除失敗，請重新開啟 App 再試');
@@ -1520,8 +1583,13 @@ function showRoomSheet() {
                 await signInWithEmailAndPassword(auth, email, password);
             }
             closeSheet();
-            await enterRoom(roomId, { keepLocalData: isCreating });  // 建立房間時，會把本機現有收藏一起上傳
-            if (isCreating) await pushChanges();
+            let includeLocalData = false;
+            if (isCreating && (appData.items.length || appData.folders.length)) {
+                includeLocalData = confirm(`要把本地的 ${appData.items.length} 筆收藏一起放進新房間嗎？\n（本地的原件會保留）`);
+            }
+            await saveCurrentWorkspaceNow();   // 先把本地資料存好
+            await enterRoom(roomId, { keepLocalData: includeLocalData });
+            if (includeLocalData) await pushChanges();
             showToast(isCreating ? '房間已建立(*˙꒳˙*)♬｡.' : '已進入房間(*˙꒳˙*)♬｡.');
         } catch (error) {
             showToast(authErrorMessages[error.code] || '發生錯誤，請稍後再試');
@@ -1537,10 +1605,89 @@ async function startCloud() {
         const { auth } = await loadFirebase();
         await auth.authStateReady();
         const user = auth.currentUser;
-        if (user?.email?.endsWith(ROOM_EMAIL_DOMAIN)) {
-            await enterRoom(user.email.replace(ROOM_EMAIL_DOMAIN, ''), { keepLocalData: false });
+        if (!user?.email?.endsWith(ROOM_EMAIL_DOMAIN)) return;
+        const roomId = user.email.replace(ROOM_EMAIL_DOMAIN, '');
+        cloud.sessionRoomId = roomId;
+        cloud.roomTitle = localStorage.getItem('roomTitle:' + roomId) || '';
+        if (localStorage.getItem('activeWorkspace') === 'room') {
+            await enterRoom(roomId, { keepLocalData: false });   // 回到上次使用的工作區
+        } else {
+            renderPage();
         }
-    } catch (error) { reportError('startCloud 連線 Firebase', error, '連不上雲端，目前使用本機資料'); }
+    } catch (error) {
+        reportError('startCloud 連線 Firebase', error, '連不上雲端，目前使用本機資料');
+    }
+}
+
+// ---- 工作區（本地 / 房間）----
+async function saveCurrentWorkspaceNow() {
+    clearTimeout(localSaveTimer);
+    if (cloud.roomId) await pushChanges();
+    else await writeLocalData();
+}
+
+async function switchWorkspace(workspace) {
+    if (workspace === activeWorkspace) return;
+    await saveCurrentWorkspaceNow();
+    if (workspace === 'local') {
+        const localData = await loadData();
+        if (localLoadFailed) return;   // 讀不到本地資料就不切換
+        stopRoomListeners();
+        appData = Object.assign(emptyAppData(), localData);
+        activeWorkspace = 'local';
+        localStorage.setItem('activeWorkspace', 'local');
+        currentFolderId = 'all';
+        renderPage();
+    } else {
+        await enterRoom(cloud.sessionRoomId, { keepLocalData: false });
+    }
+    setSidebarOpen(false);
+}
+
+async function loadFoldersOf(workspace) {
+    if (workspace === activeWorkspace) return appData.folders;
+    if (workspace === 'local') return (await loadData())?.folders || [];
+    const { db, collection, getDocs } = await loadFirebase();
+    const snapshot = await getDocs(collection(db, 'rooms', cloud.sessionRoomId, 'folders'));
+    return snapshot.docs.map(folderDocument => normalizeFolder({ ...folderDocument.data(), id: folderDocument.id }));
+}
+
+async function workspaceHasUrl(workspace, url) {
+    if (workspace === 'local') return (await loadData())?.items?.some(item => item.url === url) || false;
+    const { db, collection, query, where, getDocs } = await loadFirebase();
+    const snapshot = await getDocs(query(collection(db, 'rooms', cloud.sessionRoomId, 'items'), where('url', '==', url)));
+    return !snapshot.empty;
+}
+
+async function addItemToWorkspace(newItem, workspace) {
+    if (workspace === activeWorkspace) {
+        appData.items.unshift(newItem);
+        appData.lastFolderId = newItem.folderId;
+        saveData();
+    } else if (workspace === 'local') {
+        const localData = Object.assign(emptyAppData(), await loadData());
+        if (localLoadFailed) throw new Error('本地資料讀取失敗');
+        localData.items.unshift(newItem);
+        localData.lastFolderId = newItem.folderId;
+        if (!(await writeLocalData(localData))) throw new Error('本地資料儲存失敗');
+    } else {
+        const { db, doc, setDoc } = await loadFirebase();
+        await setDoc(doc(db, 'rooms', cloud.sessionRoomId, 'items', newItem.id), newItem);
+    }
+}
+
+async function copyItemToOtherWorkspace(item, targetWorkspace) {
+    const targetFolders = await loadFoldersOf(targetWorkspace);
+    const folderName = getFolderName(item.folderId);
+    const matchedFolder = folderName && targetFolders.find(folder => folder.name === folderName);
+    await addItemToWorkspace({
+        ...item,
+        images: [...item.images],
+        id: makeUniqueId(),
+        folderId: matchedFolder ? matchedFolder.id : '',
+        addedBy: targetWorkspace === 'room' ? getMyName() : '',
+        createdAt: Date.now()
+    }, targetWorkspace);
 }
 
 // ---- 左側欄 ----
@@ -1553,8 +1700,14 @@ function renderSidebar() {
     const myId = getMemberId();
     let html = '';
 
-    if (isCloudConfigured && !cloud.roomId) {
+    if (isCloudConfigured && !cloud.sessionRoomId) {
         html += '<button class="side-room-button" id="open-room-button">登入／建立房間</button>';
+    }
+        if (cloud.sessionRoomId) {
+        html += `<div class="workspace-tabs">
+            <button class="button${activeWorkspace === 'local' ? ' on' : ''}" data-workspace="local">📱 本地</button>
+            <button class="button${activeWorkspace === 'room' ? ' on' : ''}" data-workspace="room">🏠 ${escapeHtml(getRoomLabel())}</button>
+        </div>`;
     }
     if (cloud.roomId) {
         const isOwner = cloud.members.some(member => member.id === myId && member.isOwner);
@@ -1569,6 +1722,8 @@ function renderSidebar() {
         html += `<br><div class="side-room">
             <button id="leave-room-button">登出房間</button>
             ${isOwner ? '<button id="delete-room-button" class="delete-room-button">刪除房間</button>' : ''}</div>`;
+    } else if (cloud.sessionRoomId) {
+        html += '<div class="side-room"><button id="leave-room-button">登出房間</button></div>';
     }
     if (cloud.roomId && hasGuest) {
         html += `<h3 class="side-title-h3">在線 ${onlineMembers.length} 人</h3>`;
@@ -1598,6 +1753,8 @@ selectElement('#sidebar').onclick = async event => {
         if (expandedFolderKeys.has(key)) expandedFolderKeys.delete(key);
         else expandedFolderKeys.add(key);
         renderSidebar();
+    } else if (target.dataset.workspace) {
+        await switchWorkspace(target.dataset.workspace)
     } else if (target.dataset.sidebarItemId) {
         setSidebarOpen(false);
         showDetailPage(target.dataset.sidebarItemId);
@@ -1606,6 +1763,8 @@ selectElement('#sidebar').onclick = async event => {
         showRoomSheet();
     } else if (target.id === 'rename-room-button') {
         const newTitle = prompt('新的房間名稱', appData.roomTitle || '');
+            cloud.roomTitle = appData.roomTitle;
+            localStorage.setItem('roomTitle:' + cloud.roomId, appData.roomTitle);
         if (newTitle !== null) {
             appData.roomTitle = newTitle.trim().slice(0, 30);
             saveData();
