@@ -675,13 +675,13 @@ body.sidebar-open #sidebar-backdrop { display: block; }
 <div class="page-width">
     <h1><b>⊹˚. 📑 留己看 ˖ ࣪⊹</b></h1>
     <div class="sub-title" id="sub-title"><h4 id="sub-title-text">……會記得回來看的啦！</h4></div><hr>
-    <input id="search-box" type="search" placeholder="🔍搜尋標題、備註、網址……">
+    <input id="search-box" type="search" placeholder="🔍搜尋標題、網址、備註……">
     <nav id="folder-tabs"></nav>
     <div id="folder-actions"></div>
     <main id="item-list"></main>
     <footer>
-        <button id="export-backup-button">匯出備份</button>
-        <button id="import-backup-button">匯入備份</button>
+        <button id="export-backup-button">匯出數據</button>
+        <button id="import-backup-button">匯入數據</button>
         <button id="install-app-button" hidden>安裝成 App</button>
         <input id="import-file-input" type="file" accept=".json" hidden>
     </footer>
@@ -730,10 +730,11 @@ const isValidUrl = url => {
 const getPlatformName = url => {
     const hostName = getHostName(url);
     if (/(^|\.)threads\.(net|com)$/.test(hostName)) return 'Threads';
-    if (/(^|\.)instagram\.com$/.test(hostName)) return 'Instagram';
-    if (/(^|\.)(facebook\.com|fb\.com|fb\.watch|fb\.me)$/.test(hostName)) return 'Facebook';
-    if (/(^|\.)(youtube\.com|youtu\.be)$/.test(hostName)) return 'YouTube';
-    if (/(^|\.)(x\.com|twitter\.com)$/.test(hostName)) return 'X';
+    if (/(^|\.)instagram\.com$/.test(hostName)) return 'IG';
+    if (/(^|\.)(facebook\.com|fb\.com|fb\.watch|fb\.me)$/.test(hostName)) return 'Fb';
+    if (/(^|\.)(youtube\.com|youtu\.be)$/.test(hostName)) return 'YT';
+    if (/(^|\.)(x\.com|twitter\.com)$/.test(hostName)) return 'Twitter';
+    if (/(^|\.)(spotify\.com|spoti\.fi|spotify\.link)$/.test(hostName)) return 'Spotify';
     return hostName;
 };
 
@@ -1278,7 +1279,7 @@ function showDetailPage(itemId) {
 
 // Backup import and export
 selectElement('#export-backup-button').onclick = () => {
-    const backupBlob = new Blob([JSON.stringify(appData)], { type: 'application/json' });
+    const backupBlob = new Blob([JSON.stringify(appData, null, 2)], { type: 'application/json; charset=utf-8' });
     const downloadLink = document.createElement('a');
     downloadLink.href = URL.createObjectURL(backupBlob);
     downloadLink.download = 'linkbox-backup.json';
@@ -1305,7 +1306,7 @@ selectElement('#import-file-input').onchange = async event => {
         renderPage();
         showToast('已匯入');
     } catch (error) {
-        reportError('匯入備份', error, '匯入失敗：檔案格式不正確');
+        reportError('匯入數據', error, '匯入失敗：檔案格式不正確');
     }
 };
 
@@ -1523,7 +1524,7 @@ async function leaveRoom() {
 async function deleteRoom() {
     const roomId = cloud.roomId;
     const roomLabel = appData.roomTitle || roomId;
-    if (!confirm(`刪除房間「${roomLabel}」？( º-º  )\n所有收藏和資料夾會永久消失，所有人都看不到，且無法復原。\n建議先匯出備份。`)) return;
+    if (!confirm(`刪除房間「${roomLabel}」？( º-º  )\n所有收藏和資料夾會永久消失，所有人都看不到，且無法復原。\n建議先匯出數據。`)) return;
     const password = prompt('請輸入房間密碼確認刪除');
     if (!password) return;
     try {
@@ -1541,20 +1542,21 @@ async function deleteRoom() {
         localStorage.setItem('activeWorkspace', 'local');
         appData = normalizeAppData(await loadData());
         currentFolderId = 'all';
-        setSidebarOpen(false);        renderPage();
-        showToast('房間已刪除(  ´ω`)ﾉﾞ');
+        setSidebarOpen(false);
+        renderPage();
+        showToast('房間掰掰(  ´ω`)ﾉﾞ');
     } catch (error) {
-        showToast(authErrorMessages[error.code] || '刪除失敗，請重新開啟 App 再試');
+        showToast(authErrorMessages[error.code] || '刪除失敗，請重開 App 再試一次～');
     }
 }
 
 const authErrorMessages = {
     'auth/email-already-in-use': '房間 ID 已經有人在用了( ´ ᐞ ` )',
     'auth/invalid-credential': '房間 ID 或密碼不正確( ´ ᐞ ` )',
-    'auth/wrong-password': '房間 ID 或密碼不正確( ´ ᐞ ` )',
+    'auth/wrong-password': '密碼錯了噢( ´ ᐞ ` )',
     'auth/user-not-found': '房間 ID 或密碼不正確( ´ ᐞ ` )',
-    'auth/weak-password': '密碼請至少設定 6 個字元( ´ ᐞ ` )',
-    'auth/too-many-requests': '嘗試次數太多，請稍後再試( ´ ᐞ ` )'
+    'auth/weak-password': '密碼要至少 6 個字元( ´ ᐞ ` )',
+    'auth/too-many-requests': '試太多次了，等一下( ´ ᐞ ` )'
 };
 
 function showRoomSheet() {
@@ -1580,11 +1582,11 @@ function showRoomSheet() {
 
     const submit = async isCreating => {
         const roomId = selectElement('#room-id-input').value.trim().toLowerCase();
-        if (!/^[a-z0-9_-]{3,20}$/.test(roomId)) return showToast('房間 ID 格式錯了');
+        if (!/^[a-z0-9_-]{3,20}$/.test(roomId)) return showToast('房間 ID 格式怪怪的');
         const password = selectElement('#room-password-input').value;
-        if (password.length < 6) return showToast('密碼需要至少 6 個字元');
+        if (password.length < 6) return showToast('密碼要至少 6 個字元( ´ ᐞ ` )');
         const enteredName = selectElement('#room-name-input').value.trim().slice(0, 20);
-        if (!enteredName) return showToast('請告訴我你是誰！');
+        if (!enteredName) return showToast('告訴我你是誰！');
         localStorage.setItem('displayName', enteredName);
         try {
             const { auth, db, doc, setDoc, serverTimestamp, createUserWithEmailAndPassword, signInWithEmailAndPassword } = await loadFirebase();
@@ -1599,14 +1601,14 @@ function showRoomSheet() {
             closeSheet();
             let includeLocalData = false;
             if (isCreating && (appData.items.length || appData.folders.length)) {
-                includeLocalData = confirm(`要把本地的 ${appData.items.length} 筆收藏一起放進新房間嗎？\n（本地的原件會保留）`);
+                includeLocalData = confirm(`要把本地的 ${appData.items.length} 筆收藏複製進新房間嗎？`);
             }
-            await saveCurrentWorkspaceNow();   // 先把本地資料存好
+            await saveCurrentWorkspaceNow(); // 先把本地資料存好
             await enterRoom(roomId, { keepLocalData: includeLocalData });
             if (includeLocalData) await pushChanges();
             showToast(isCreating ? '房間已建立(*˙꒳˙*)♬｡.' : '已進入房間(*˙꒳˙*)♬｡.');
         } catch (error) {
-            reportError('進入房間', error, authErrorMessages[error.code] || '發生錯誤：' + (error.code || error.message));
+            reportError('進入房間', error, authErrorMessages[error.code] || '錯誤：' + (error.code || error.message));
         }
     };
     selectElement('#room-create-button').onclick = () => submit(true);
@@ -1645,7 +1647,7 @@ async function switchWorkspace(workspace) {
     await saveCurrentWorkspaceNow();
     if (workspace === 'local') {
         const localData = await loadData();
-        if (localLoadFailed) return;   // 讀不到本地資料就不切換
+        if (localLoadFailed) return; // 讀不到本地資料就不切換
         stopRoomListeners();
         appData = normalizeAppData(localData);
         activeWorkspace = 'local';
@@ -1792,7 +1794,7 @@ selectElement('#sidebar').onclick = async event => {
     } else if (target.id === 'leave-room-button') {
         await leaveRoom();
     } else if (target.id === 'rename-me-button') {
-        const newName = prompt('你的新名稱', getMyName());
+        const newName = prompt('你的新名字', getMyName());
         if (newName?.trim()) {
             localStorage.setItem('displayName', newName.trim().slice(0, 20));
             sendHeartbeat();
